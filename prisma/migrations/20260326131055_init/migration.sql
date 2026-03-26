@@ -1,9 +1,11 @@
 -- CreateTable
 CREATE TABLE "Video" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "youtubeId" TEXT NOT NULL,
     "movieTitle" TEXT NOT NULL,
     "sceneTitle" TEXT NOT NULL,
     "description" TEXT,
-    "submittedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Video_pkey" PRIMARY KEY ("id")
 );
