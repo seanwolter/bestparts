@@ -33,7 +33,7 @@ export default function RootLayout({
         <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
         <footer className="border-t border-neutral-800 mt-16">
           <div className="max-w-6xl mx-auto px-4 py-6 text-center text-neutral-600 text-sm">
-            bestparts — the best parts of movies, curated by the community
+            bestparts.biz | mark griffioen
           </div>
         </footer>
       </body>
