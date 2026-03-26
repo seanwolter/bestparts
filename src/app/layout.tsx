@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Bestparts — Memorable Movie Scenes",
+  title: "bestparts.biz",
   description:
-    "A community collection of the most memorable scenes from movies.",
+    "A collection of the best parts from movies.",
 };
 
 export default function RootLayout({
