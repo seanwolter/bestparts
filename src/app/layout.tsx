@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Bestparts — Memorable Movie Scenes",
+  title: "bestparts.biz",
   description:
-    "A community collection of the most memorable scenes from movies.",
+    "A collection of the best parts from movies.",
 };
 
 export default function RootLayout({
@@ -33,7 +33,7 @@ export default function RootLayout({
         <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
         <footer className="border-t border-neutral-800 mt-16">
           <div className="max-w-6xl mx-auto px-4 py-6 text-center text-neutral-600 text-sm">
-            bestparts.biz | mark griffioen
+            bestparts.biz | mark griffioen | sean wolter
           </div>
         </footer>
       </body>
