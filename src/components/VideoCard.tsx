@@ -44,8 +44,8 @@ export default function VideoCard({
 
   return (
     <>
-      <article className="bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800 hover:border-neutral-600 transition-colors group">
-        <div className="relative aspect-video bg-neutral-800">
+      <article className="bg-neutral-900 rounded-xl overflow-hidden border border-neutral-800 hover:border-neutral-600 transition-colors group flex flex-col">
+        <div className="relative aspect-video bg-neutral-800 shrink-0">
           <button
             onClick={() => setOpen(true)}
             className="absolute inset-0 w-full h-full flex items-center justify-center group/btn"
@@ -65,7 +65,7 @@ export default function VideoCard({
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 flex flex-col flex-1">
           <p className="text-xs text-yellow-400 font-semibold uppercase tracking-wider mb-1">
             {movieTitle}
           </p>
@@ -77,7 +77,7 @@ export default function VideoCard({
               {description}
             </p>
           )}
-          <div className="flex items-center justify-between mt-3">
+          <div className="flex items-center justify-between mt-auto pt-3">
             <p className="text-neutral-600 text-xs">{formattedDate}</p>
             <div className="flex gap-2">
               <button
