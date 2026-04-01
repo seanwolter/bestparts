@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import MovieTitleInput from "@/components/MovieTitleInput";
 
 export default function SubmitPage() {
   const router = useRouter();
@@ -84,15 +85,10 @@ export default function SubmitPage() {
           >
             Movie title <span className="text-red-400">*</span>
           </label>
-          <input
-            id="movieTitle"
-            name="movieTitle"
-            type="text"
-            required
-            placeholder="e.g. The Godfather"
+          <MovieTitleInput
             value={form.movieTitle}
-            onChange={handleChange}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2.5 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-400 transition-colors"
+            onChange={(val) => setForm((prev) => ({ ...prev, movieTitle: val }))}
+            required
           />
         </div>
 
