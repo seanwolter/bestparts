@@ -16,12 +16,12 @@ export default async function SetupPage({
           Invite-only setup
         </p>
         <h1 className="max-w-xl text-4xl font-black tracking-tight text-white sm:text-5xl">
-          Finish your first passkey registration.
+          Complete passkey setup.
         </h1>
         <p className="max-w-lg text-lg leading-8 text-neutral-400">
-          This one-time link is the only path into a new account. Once your
-          passkey is saved, the link expires and future sign-in happens from the
-          normal login page.
+          This one-time link can be used for first-time setup, adding another
+          passkey, or account recovery. Once registration succeeds, the link
+          expires and future sign-in happens from the normal login page.
         </p>
       </section>
 

@@ -34,7 +34,7 @@ function createUser(overrides: Partial<AdminUserListItem> = {}): AdminUserListIt
 
 describe("UserList", () => {
   it("shows initial enrollment and recovery actions for users without passkeys", () => {
-    render(<UserList users={[createUser()]} />);
+    render(<UserList users={[createUser()]} currentUserId="different-user" />);
 
     expect(
       screen.getByRole("button", { name: "Issue setup link:INITIAL_ENROLLMENT" })
@@ -59,6 +59,7 @@ describe("UserList", () => {
             },
           }),
         ]}
+        currentUserId="different-user"
       />
     );
 
@@ -67,5 +68,14 @@ describe("UserList", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add passkey:ADD_PASSKEY" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Recovery:RECOVERY" })).toBeInTheDocument();
+  });
+
+  it("hides the recovery action for the currently logged in user", () => {
+    render(<UserList users={[createUser()]} currentUserId="user_123" />);
+
+    expect(
+      screen.getByRole("button", { name: "Issue setup link:INITIAL_ENROLLMENT" })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Recovery:RECOVERY" })).not.toBeInTheDocument();
   });
 });

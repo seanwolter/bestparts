@@ -39,11 +39,18 @@ function describeLatestTokenState(user: AdminUserListItem): string {
   return `Active until ${latestToken.expiresAt.toLocaleString()}`;
 }
 
-export default function UserList({ users }: { users: AdminUserListItem[] }) {
+export default function UserList({
+  users,
+  currentUserId,
+}: {
+  users: AdminUserListItem[];
+  currentUserId: string;
+}) {
   return (
     <section className="space-y-4">
       {users.map((user) => {
         const hasPasskeys = user.passkeyCount > 0;
+        const canRecoverUser = user.id !== currentUserId;
 
         return (
           <article
@@ -112,12 +119,14 @@ export default function UserList({ users }: { users: AdminUserListItem[] }) {
                     label="Add passkey"
                   />
                 )}
-                <IssueSetupTokenButton
-                  userId={user.id}
-                  username={user.username}
-                  reason="RECOVERY"
-                  label="Recovery"
-                />
+                {canRecoverUser && (
+                  <IssueSetupTokenButton
+                    userId={user.id}
+                    username={user.username}
+                    reason="RECOVERY"
+                    label="Recovery"
+                  />
+                )}
                 {!hasPasskeys && (
                   <p className="self-center text-xs text-neutral-500 sm:col-span-2">
                     Add-passkey links become available after the user has completed initial enrollment.

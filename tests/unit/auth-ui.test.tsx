@@ -202,6 +202,32 @@ describe("auth UI", () => {
     expect(mocks.routerRefresh).toHaveBeenCalled();
   });
 
+  it("shows a specific add-passkey error when the current device already has a passkey", async () => {
+    mocks.startRegistration.mockRejectedValueOnce({
+      name: "InvalidStateError",
+    });
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        options: {
+          challenge: "setup-challenge",
+        },
+        user: {
+          username: "mark",
+          reason: "ADD_PASSKEY",
+        },
+      })
+    );
+
+    render(<SetupPasskeyForm token="setup-token" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Register passkey" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This device or passkey manager already has a passkey for this account."
+    );
+    expect(screen.getByText("Add another passkey")).toBeInTheDocument();
+  });
+
   it("posts logout and refreshes navigation", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ ok: true }));
 

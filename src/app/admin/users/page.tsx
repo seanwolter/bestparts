@@ -72,7 +72,7 @@ export default async function AdminUsersPage() {
       </section>
 
       <CreateUserForm />
-      <UserList users={mappedUsers} />
+      <UserList users={mappedUsers} currentUserId={currentUser.id} />
     </div>
   );
 }

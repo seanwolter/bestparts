@@ -12,13 +12,17 @@ const GENERIC_SETUP_FAILURE_MESSAGE = "Passkey setup failed.";
 const INVALID_SETUP_TOKEN_ERROR = "Setup token is invalid or expired.";
 const UNSUPPORTED_WEBAUTHN_MESSAGE =
   "This browser does not support passkeys.";
+const ADD_PASSKEY_EXISTING_DEVICE_MESSAGE =
+  "This device or passkey manager already has a passkey for this account. Use a different device or browser to add another passkey, or use recovery if you need to replace the current one.";
+
+type SetupTokenReason = "INITIAL_ENROLLMENT" | "ADD_PASSKEY" | "RECOVERY";
 
 interface SetupOptionsResponse {
   options: PublicKeyCredentialCreationOptionsJSON;
   user?: {
     username?: string;
-    status?: string;
-    reason?: string;
+    status?: "PENDING_SETUP" | "ACTIVE";
+    reason?: SetupTokenReason;
   };
 }
 
@@ -48,15 +52,58 @@ function getSetupErrorMessage(payload: AuthErrorResponse | null): string {
   return GENERIC_SETUP_FAILURE_MESSAGE;
 }
 
+function getClientSetupErrorMessage(
+  error: unknown,
+  setupReason: SetupTokenReason | null
+): string {
+  if (
+    setupReason === "ADD_PASSKEY" &&
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "InvalidStateError"
+  ) {
+    return ADD_PASSKEY_EXISTING_DEVICE_MESSAGE;
+  }
+
+  return GENERIC_SETUP_FAILURE_MESSAGE;
+}
+
+function getSetupHeading(setupReason: SetupTokenReason | null): string {
+  if (setupReason === "ADD_PASSKEY") {
+    return "Add another passkey";
+  }
+
+  if (setupReason === "RECOVERY") {
+    return "Recover account access";
+  }
+
+  return "Register your passkey";
+}
+
+function getSetupDescription(setupReason: SetupTokenReason | null): string {
+  if (setupReason === "ADD_PASSKEY") {
+    return "Use a device or passkey manager that does not already have one of this account's passkeys. If you are replacing your current passkey, use recovery instead.";
+  }
+
+  if (setupReason === "RECOVERY") {
+    return "This one-time recovery link replaces the previous passkey setup. Finish registration on the device you want to use going forward.";
+  }
+
+  return "This link can only be used once. Finish passkey setup on the device you plan to sign in with.";
+}
+
 export default function SetupPasskeyForm({ token }: { token: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [setupReason, setSetupReason] = useState<SetupTokenReason | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleRegister() {
     setSubmitting(true);
     setError(null);
+    let nextSetupReason: SetupTokenReason | null = null;
 
     try {
       if (!(await browserSupportsWebAuthn())) {
@@ -83,6 +130,8 @@ export default function SetupPasskeyForm({ token }: { token: string }) {
       }
 
       setUsername(optionsPayload.user?.username?.trim() || null);
+      nextSetupReason = optionsPayload.user?.reason ?? null;
+      setSetupReason(nextSetupReason);
 
       const registrationResponse = await startRegistration({
         optionsJSON: optionsPayload.options,
@@ -107,8 +156,8 @@ export default function SetupPasskeyForm({ token }: { token: string }) {
 
       router.push("/");
       router.refresh();
-    } catch {
-      setError(GENERIC_SETUP_FAILURE_MESSAGE);
+    } catch (error) {
+      setError(getClientSetupErrorMessage(error, nextSetupReason));
     } finally {
       setSubmitting(false);
     }
@@ -121,11 +170,10 @@ export default function SetupPasskeyForm({ token }: { token: string }) {
           One-time setup
         </p>
         <h2 className="mt-3 text-xl font-black text-white">
-          Register your passkey
+          {getSetupHeading(setupReason)}
         </h2>
         <p className="mt-2 text-sm leading-6 text-neutral-400">
-          This link can only be used once. Finish passkey setup on the device you
-          plan to sign in with.
+          {getSetupDescription(setupReason)}
         </p>
         {username && (
           <p className="mt-4 text-sm text-neutral-300">
