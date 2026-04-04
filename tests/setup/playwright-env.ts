@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 
 const repoRoot = process.cwd();
 const envFilePath = path.join(repoRoot, ".env");
+const defaultPlaywrightBaseUrl = "http://localhost:3001";
 
 function loadLocalEnvFile(): void {
   if (!existsSync(envFilePath)) {
@@ -57,6 +58,10 @@ export function getPlaywrightTestDatabaseUrl(): string {
   return databaseUrl;
 }
 
+export function getPlaywrightBaseUrl(): string {
+  return process.env.PLAYWRIGHT_BASE_URL?.trim() || defaultPlaywrightBaseUrl;
+}
+
 export function createPlaywrightWebServerEnv(): Record<string, string> {
   const env: Record<string, string> = {};
 
@@ -67,6 +72,8 @@ export function createPlaywrightWebServerEnv(): Record<string, string> {
   }
 
   env.DATABASE_URL = getPlaywrightTestDatabaseUrl();
+  env.WEBAUTHN_RP_ID = new URL(getPlaywrightBaseUrl()).hostname;
+  env.WEBAUTHN_ORIGIN = getPlaywrightBaseUrl();
 
   return env;
 }

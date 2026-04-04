@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
-import { createPlaywrightWebServerEnv } from "./tests/setup/playwright-env";
+import {
+  createPlaywrightWebServerEnv,
+  getPlaywrightBaseUrl,
+} from "./tests/setup/playwright-env";
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3001";
+const baseURL = getPlaywrightBaseUrl();
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -13,12 +16,12 @@ export default defineConfig({
   globalSetup: "./tests/setup/playwright-global-setup.ts",
   use: {
     baseURL,
-    trace: "on-first-retry",
+      trace: "on-first-retry",
   },
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
     ? undefined
     : {
-        command: "npm run dev -- --hostname 127.0.0.1 --port 3001",
+        command: "npm run dev -- --hostname localhost --port 3001",
         env: createPlaywrightWebServerEnv(),
         url: baseURL,
         reuseExistingServer: false,

@@ -1,6 +1,12 @@
-import { PrismaClient, UserRole, UserStatus } from "@prisma/client";
+import {
+  PrismaClient,
+  SetupTokenReason,
+  UserRole,
+  UserStatus,
+} from "@prisma/client";
 import { SESSION_COOKIE_NAME } from "../../src/lib/auth/cookies";
 import { createSession } from "../../src/lib/auth/session";
+import { createSetupToken } from "../../src/lib/auth/setup-token";
 import { getPlaywrightTestDatabaseUrl } from "./playwright-env";
 
 export function createE2EPrismaClient(): PrismaClient {
@@ -14,6 +20,8 @@ export function createE2EPrismaClient(): PrismaClient {
 }
 
 export async function resetE2EDatabase(prisma: PrismaClient): Promise<void> {
+  await prisma.authThrottleBucket.deleteMany();
+  await prisma.consumedCeremonyNonce.deleteMany();
   await prisma.video.deleteMany();
   await prisma.userSetupToken.deleteMany();
   await prisma.session.deleteMany();
@@ -48,6 +56,32 @@ export async function seedAdminSession(
   return {
     sessionToken: createdSession.sessionToken,
     username: admin.username,
+  };
+}
+
+export async function seedSetupUser(
+  prisma: PrismaClient,
+  options: {
+    username?: string;
+    reason?: SetupTokenReason;
+  } = {}
+): Promise<{ rawToken: string; setupPath: string; username: string }> {
+  const user = await prisma.user.create({
+    data: {
+      username: options.username ?? "browser-passkey-user",
+      role: UserRole.ADMIN,
+      status: UserStatus.PENDING_SETUP,
+    },
+  });
+  const setupToken = await createSetupToken(prisma, {
+    userId: user.id,
+    reason: options.reason,
+  });
+
+  return {
+    rawToken: setupToken.rawToken,
+    setupPath: setupToken.setupPath,
+    username: user.username,
   };
 }
 
