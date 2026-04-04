@@ -17,9 +17,13 @@
     "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
     "db:migrate": "prisma migrate dev",
+    "db:bootstrap-admin": "node --import tsx prisma/seed.ts",
     "db:test:reset": "node --import tsx tests/setup/test-db.ts reset",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "node --import tsx prisma/seed.ts"
   },
   "repository": {
     "type": "git",
@@ -29,6 +33,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@simplewebauthn/server": "^13.3.0",
     "next": "^16.2.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

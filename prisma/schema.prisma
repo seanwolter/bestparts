@@ -7,11 +7,100 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING_SETUP
+  ACTIVE
+}
+
+enum SetupTokenReason {
+  INITIAL_ENROLLMENT
+  ADD_PASSKEY
+  RECOVERY
+}
+
+model User {
+  id                String           @id @default(cuid())
+  username          String           @unique
+  role              UserRole         @default(ADMIN)
+  status            UserStatus       @default(PENDING_SETUP)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  passkeys          Passkey[]
+  sessions          Session[]
+  setupTokens       UserSetupToken[] @relation("SetupTokensForUser")
+  issuedSetupTokens UserSetupToken[] @relation("SetupTokensIssuedByUser")
+  submittedVideos   Video[]
+
+  @@index([status])
+}
+
+model Passkey {
+  id             String    @id @default(cuid())
+  userId         String
+  credentialId   String    @unique
+  publicKey      String
+  counter        Int       @default(0)
+  transports     String[]
+  deviceType     String
+  backedUp       Boolean   @default(false)
+  webAuthnUserID String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastUsedAt     DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([webAuthnUserID])
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  sessionTokenHash String    @unique
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime  @default(now())
+  revokedAt        DateTime?
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model UserSetupToken {
+  id             String           @id @default(cuid())
+  userId         String
+  issuedByUserId String?
+  tokenHash      String           @unique
+  reason         SetupTokenReason @default(INITIAL_ENROLLMENT)
+  expiresAt      DateTime
+  usedAt         DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime         @default(now())
+  issuedByUser   User?            @relation("SetupTokensIssuedByUser", fields: [issuedByUserId], references: [id], onDelete: SetNull)
+  user           User             @relation("SetupTokensForUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([issuedByUserId])
+  @@index([expiresAt])
+  @@index([usedAt])
+  @@index([revokedAt])
+}
+
 model Video {
-  id          Int      @id @default(autoincrement())
-  youtubeId   String
-  movieTitle  String
-  sceneTitle  String
-  description String?
-  submittedAt DateTime @default(now())
+  id                Int      @id @default(autoincrement())
+  youtubeId         String
+  movieTitle        String
+  sceneTitle        String
+  description       String?
+  submittedAt       DateTime @default(now())
+  submittedByUserId String?
+  submittedBy       User?    @relation(fields: [submittedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([submittedByUserId])
 }

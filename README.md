@@ -5,7 +5,7 @@ Just the best parts of movies!
 
 - npm and nvm
 - Node.js `20.9.0` or newer
-- A running PostgreSQL database (install postgres in advance or use Docker)
+- A running PostgreSQL database (install postgres or use Docker)
 - A TMDB read access token if you want movie title autocomplete
 
 ## PostgreSQL setup
@@ -16,8 +16,6 @@ Recommended local names:
 
 - App database: `bestparts`
 - Test database: `bestparts_test`
-
-Choose one of these options.
 
 ### Option 1: Local PostgreSQL
 
@@ -30,44 +28,44 @@ If PostgreSQL is already installed on your machine, create a local database and 
    createdb bestparts
    createdb bestparts_test
    ```
-
+   
 3. Set both database URLs in `.env` using your local PostgreSQL credentials. If you used the default setup there won't be a password. Your username should match your login username.
 
-```env
-DATABASE_URL="postgresql://<username>@localhost:5432/bestparts?schema=public"
-DATABASE_URL_TEST="postgresql://<username>@localhost:5432/bestparts_test?schema=public"
-```
+   ```env
+   DATABASE_URL="postgresql://<username>@localhost:5432/bestparts?schema=public"
+   DATABASE_URL_TEST="postgresql://<username>@localhost:5432/bestparts_test?schema=public"
+   ```
 
 ### Option 2: Docker
 
 If you do not want to install PostgreSQL directly, run it in Docker:
 
-```bash
-docker run --name bestparts-postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=bestparts \
-  -p 5432:5432 \
-  -d postgres:16
-```
+   ```bash
+   docker run --name bestparts-postgres \
+     -e POSTGRES_PASSWORD=postgres \
+     -e POSTGRES_DB=bestparts \
+     -p 5432:5432 \
+     -d postgres:16
+   ```
 
 Create the separate test database after the container is running:
 
-```bash
-docker exec bestparts-postgres createdb -U postgres bestparts_test
-```
+   ```bash
+   docker exec bestparts-postgres createdb -U postgres bestparts_test
+   ```
 
 Then use this in `.env`:
 
-```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bestparts?schema=public"
-DATABASE_URL_TEST="postgresql://postgres:postgres@localhost:5432/bestparts_test?schema=public"
-```
+   ```env
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bestparts?schema=public"
+   DATABASE_URL_TEST="postgresql://postgres:postgres@localhost:5432/bestparts_test?schema=public"
+   ```
 
 If you stop the container later, restart it with:
 
-```bash
-docker start bestparts-postgres
-```
+   ```bash
+   docker start bestparts-postgres
+   ```
 
 ## Run locally
 
@@ -96,10 +94,12 @@ docker start bestparts-postgres
    ```env
    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bestparts?schema=public"
    DATABASE_URL_TEST="postgresql://postgres:postgres@localhost:5432/bestparts_test?schema=public"
+   
    SESSION_SECRET="replace-with-a-long-random-secret"
    WEBAUTHN_RP_NAME="bestparts"
    WEBAUTHN_RP_ID="localhost"
    WEBAUTHN_ORIGIN="http://localhost:3000"
+   
    TMDB_TOKEN="your_tmdb_read_access_token"
    ```
 
@@ -139,6 +139,30 @@ npm run db:test:reset
 
 `db:test:reset` uses [tests/setup/test-db.ts](/Users/seanzach/DEV/bestparts/tests/setup/test-db.ts) and refuses to run if `DATABASE_URL_TEST` is missing or exactly matches `DATABASE_URL`.
 
+## Bootstrap first admin
+
+The first admin bootstrap path uses a one-time CLI script, not direct seed data.
+
+Run it like this:
+
+```bash
+npm run db:bootstrap-admin -- --username your-admin-handle
+```
+
+Optional flags:
+
+- `--base-url http://localhost:3000` overrides the origin used when printing the setup URL
+- `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_BASE_URL` can be used instead of CLI flags
+
+Behavior:
+
+- Creates the first `ADMIN` user in `PENDING_SETUP` if no users exist yet
+- Reuses the same bootstrap username if it already exists and still has no registered passkeys
+- Revokes any older unused bootstrap setup tokens for that pending user before issuing a fresh single-use setup URL
+- Refuses to run if a different user already exists, so it does not silently mutate an initialized system
+
+The printed setup URL is the out-of-band bootstrap path for first-time passkey enrollment. Keep it private.
+
 ## Useful commands
 
 - `npm run dev` starts the Next.js dev server
@@ -150,6 +174,7 @@ npm run db:test:reset
 - `npm run test:integration` runs the Vitest integration project
 - `npm run test:e2e` runs the Playwright browser test suite
 - `npm run db:migrate` creates and applies local Prisma migrations
+- `npm run db:bootstrap-admin -- --username <username>` creates the first admin and prints a single-use setup URL
 - `npm run db:test:reset` force-resets the dedicated test database to the current Prisma schema
 - `npm run db:generate` regenerates the Prisma client
 - `npm run db:studio` opens Prisma Studio

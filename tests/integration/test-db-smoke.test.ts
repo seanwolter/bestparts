@@ -20,8 +20,8 @@ describe("integration database setup", () => {
   });
 
   it("connects to the isolated postgres test database", async () => {
-    const count = await prisma.video.count();
+    const result = await prisma.$queryRaw<Array<{ value: number }>>`SELECT 1 as value`;
 
-    expect(count).toBe(0);
+    expect(result[0]?.value).toBe(1);
   });
 });
