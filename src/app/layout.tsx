@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import HeaderPrimaryActions from "@/components/HeaderPrimaryActions";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import "./globals.css";
@@ -21,11 +22,11 @@ export default async function RootLayout({
       <body className="bg-neutral-950 text-neutral-100 min-h-screen antialiased">
         <header className="border-b border-neutral-800">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
-            <a href="/" className="flex items-center gap-2 group">
+            <Link href="/" className="flex items-center gap-2 group">
               <span className="text-2xl font-black tracking-tight text-white group-hover:text-yellow-400 transition-colors">
                 best<span className="text-yellow-400 group-hover:text-white transition-colors">parts</span>.biz
               </span>
-            </a>
+            </Link>
             <HeaderPrimaryActions currentUser={currentUser} />
           </div>
         </header>

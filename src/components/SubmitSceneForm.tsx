@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import MovieTitleInput from "@/components/MovieTitleInput";
 
@@ -136,12 +137,12 @@ export default function SubmitSceneForm() {
         >
           {submitting ? "Submitting..." : "Submit scene"}
         </button>
-        <a
+        <Link
           href="/"
           className="text-neutral-500 hover:text-neutral-300 text-sm transition-colors"
         >
           Cancel
-        </a>
+        </Link>
       </div>
     </form>
   );

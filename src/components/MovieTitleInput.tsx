@@ -14,12 +14,12 @@ export default function MovieTitleInput({ value, onChange, required }: MovieTitl
   const [activeIndex, setActiveIndex] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const canShowSuggestions = value.trim().length >= 2 && suggestions.length > 0;
+  const showSuggestions = open && canShowSuggestions;
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (value.trim().length < 2) {
-      setSuggestions([]);
-      setOpen(false);
       return;
     }
     debounceRef.current = setTimeout(async () => {
@@ -61,7 +61,7 @@ export default function MovieTitleInput({ value, onChange, required }: MovieTitl
   }, []);
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (!open) return;
+    if (!showSuggestions) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
@@ -93,11 +93,11 @@ export default function MovieTitleInput({ value, onChange, required }: MovieTitl
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        onFocus={() => suggestions.length > 0 && setOpen(true)}
+        onFocus={() => canShowSuggestions && setOpen(true)}
         autoComplete="off"
         className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2.5 text-white placeholder-neutral-600 focus:outline-none focus:border-yellow-400 transition-colors"
       />
-      {open && (
+      {showSuggestions && (
         <ul className="absolute z-20 w-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden shadow-xl">
           {suggestions.map((title, i) => (
             <li

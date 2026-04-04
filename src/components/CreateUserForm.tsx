@@ -162,7 +162,10 @@ export default function CreateUserForm() {
               Copy link
             </button>
           </div>
-          <p className="mt-3 break-all rounded-xl bg-black/20 px-3 py-3 font-mono text-xs text-neutral-200">
+          <p
+            data-testid="created-setup-url"
+            className="mt-3 break-all rounded-xl bg-black/20 px-3 py-3 font-mono text-xs text-neutral-200"
+          >
             {createdToken.setupUrl}
           </p>
           <p className="mt-3 text-xs text-neutral-400">

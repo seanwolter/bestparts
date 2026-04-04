@@ -4,7 +4,7 @@ Just the best parts of movies!
 ## Requirements
 
 - npm and nvm
-- Node.js `20.9.0` or newer
+- Node.js `24.14.1`
 - A running PostgreSQL database (install postgres or use Docker)
 - A TMDB read access token if you want movie title autocomplete
 
@@ -75,7 +75,7 @@ docker start bestparts-postgres
 nvm use
 ```
 
-   If you do not use `nvm`, install Node `20.9.0` or newer manually.
+   If you do not use `nvm`, install Node `24.14.1` manually.
 
 2. Install dependencies.
 

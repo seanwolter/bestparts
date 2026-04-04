@@ -21,5 +21,29 @@ export default defineConfig({
       reportsDirectory: "./coverage",
       exclude: ["tests/**", "node_modules/**"],
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "jsdom",
+          include: ["tests/unit/**/*.test.ts", "tests/unit/**/*.test.tsx"],
+          setupFiles: ["./tests/setup/vitest.setup.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "integration",
+          environment: "node",
+          include: ["tests/integration/**/*.test.ts"],
+          setupFiles: ["./tests/setup/vitest.setup.ts"],
+          globalSetup: ["./tests/setup/test-db.ts"],
+          pool: "threads",
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
+        },
+      },
+    ],
   },
 });
