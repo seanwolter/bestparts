@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   SetupTokenReason,
+  type Passkey,
   UserRole,
   UserStatus,
   type User,
@@ -16,18 +17,19 @@ import {
 } from "@/lib/auth/setup-token";
 
 type SetupTokenRecord = UserSetupToken & {
-  user: User;
+  user: User & { passkeys: Passkey[] };
   issuedByUser: User | null;
 };
 
 function createSetupTokenClient(): SetupTokenClientLike & { records: SetupTokenRecord[] } {
-  const user: User = {
+  const user: User & { passkeys: Passkey[] } = {
     id: "user_123",
     username: "mark",
     role: UserRole.ADMIN,
     status: UserStatus.ACTIVE,
     createdAt: new Date("2026-04-04T00:00:00.000Z"),
     updatedAt: new Date("2026-04-04T00:00:00.000Z"),
+    passkeys: [],
   };
   const records: SetupTokenRecord[] = [];
 

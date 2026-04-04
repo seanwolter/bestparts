@@ -14,6 +14,7 @@ export type CeremonyErrorCode =
   | "missing"
   | "invalid"
   | "expired"
+  | "replayed"
   | "flow_mismatch"
   | "principal_mismatch";
 
@@ -28,6 +29,8 @@ export interface CeremonyState extends CeremonyPrincipalBinding {
   expiresAt: Date;
   nonce: string;
 }
+
+const consumedCeremonyNonces = new Map<string, number>();
 
 export interface IssueCeremonyStateOptions extends CeremonyPrincipalBinding {
   flow: AuthFlow;
@@ -49,6 +52,7 @@ export function issueCeremonyState(
   options: IssueCeremonyStateOptions
 ): { state: CeremonyState; cookie: AuthCookieDescriptor } {
   const now = options.now ?? new Date();
+  pruneConsumedCeremonyNonces(now);
   const expiresAt = new Date(now.getTime() + (options.ttlMs ?? CEREMONY_TTL_MS));
   const state: CeremonyState = {
     flow: options.flow,
@@ -73,6 +77,8 @@ export function readCeremonyState(
   expectedPrincipal?: CeremonyPrincipalBinding,
   now = new Date()
 ): CeremonyState {
+  pruneConsumedCeremonyNonces(now);
+
   if (!rawCookieValue) {
     throw new CeremonyStateError("missing", "Missing ceremony cookie.");
   }
@@ -118,10 +124,22 @@ export function consumeCeremonyState(
     now
   );
 
+  const nonceKey = getCeremonyNonceKey(state);
+
+  if (consumedCeremonyNonces.has(nonceKey)) {
+    throw new CeremonyStateError("replayed", "Ceremony state was already used.");
+  }
+
+  consumedCeremonyNonces.set(nonceKey, state.expiresAt.getTime());
+
   return {
     state,
     clearedCookie: buildExpiredCeremonyCookie(expectedFlow),
   };
+}
+
+export function resetConsumedCeremonyState(): void {
+  consumedCeremonyNonces.clear();
 }
 
 export function serializeCeremonyState(
@@ -190,4 +208,18 @@ function matchesPrincipal(
 function normalizePrincipalValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function getCeremonyNonceKey(state: Pick<CeremonyState, "flow" | "nonce">): string {
+  return `${state.flow}:${state.nonce}`;
+}
+
+function pruneConsumedCeremonyNonces(now: Date): void {
+  const nowMs = now.getTime();
+
+  for (const [nonceKey, expiresAt] of consumedCeremonyNonces.entries()) {
+    if (expiresAt <= nowMs) {
+      consumedCeremonyNonces.delete(nonceKey);
+    }
+  }
 }

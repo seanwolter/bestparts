@@ -206,7 +206,7 @@ export async function verifyRegistration(options: {
 
   return verifyRegistrationResponse({
     response: options.response,
-    expectedChallenge: options.expectedChallenge,
+    expectedChallenge: normalizeExpectedChallenge(options.expectedChallenge),
     expectedOrigin: config.expectedOrigins,
     expectedRPID: config.rpID,
     requireUserVerification: true,
@@ -264,7 +264,7 @@ export async function verifyAuthentication(options: {
 
   return verifyAuthenticationResponse({
     response: options.response,
-    expectedChallenge: options.expectedChallenge,
+    expectedChallenge: normalizeExpectedChallenge(options.expectedChallenge),
     expectedOrigin: config.expectedOrigins,
     expectedRPID: config.rpID,
     credential: toWebAuthnCredential(options.passkey),
@@ -294,6 +294,10 @@ function normalizeAuthenticatorTransports(
   }
 
   return transports.filter(isAuthenticatorTransport) as AuthenticatorTransportFuture[];
+}
+
+function normalizeExpectedChallenge(challenge: string): string {
+  return Buffer.from(challenge, "utf8").toString("base64url");
 }
 
 function isAuthenticatorTransport(

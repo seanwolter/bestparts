@@ -4,6 +4,7 @@ import {
   issueCeremonyState,
   readCeremonyState,
   CeremonyStateError,
+  resetConsumedCeremonyState,
 } from "@/lib/auth/challenge";
 
 describe("challenge helpers", () => {
@@ -11,10 +12,12 @@ describe("challenge helpers", () => {
 
   beforeEach(() => {
     process.env.SESSION_SECRET = "test-session-secret";
+    resetConsumedCeremonyState();
   });
 
   afterEach(() => {
     process.env.SESSION_SECRET = originalSecret;
+    resetConsumedCeremonyState();
   });
 
   it("issues and reads signed ceremony state", () => {
@@ -43,6 +46,19 @@ describe("challenge helpers", () => {
 
     expect(consumed.clearedCookie.value).toBe("");
     expect(consumed.clearedCookie.options.maxAge).toBe(0);
+  });
+
+  it("rejects replayed ceremony state after it is consumed", () => {
+    const { cookie } = issueCeremonyState({
+      flow: "login",
+      username: "mark",
+    });
+
+    consumeCeremonyState(cookie.value, "login", { username: "mark" });
+
+    expect(() =>
+      consumeCeremonyState(cookie.value, "login", { username: "mark" })
+    ).toThrowError(CeremonyStateError);
   });
 
   it("rejects expired ceremony state", () => {

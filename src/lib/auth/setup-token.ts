@@ -6,7 +6,11 @@ export const SETUP_TOKEN_TTL_MS = 24 * 60 * 60_000;
 
 export type SetupTokenWithRelations = Prisma.UserSetupTokenGetPayload<{
   include: {
-    user: true;
+    user: {
+      include: {
+        passkeys: true;
+      };
+    };
     issuedByUser: true;
   };
 }>;
@@ -21,14 +25,22 @@ export interface UserSetupTokenDelegateLike {
       expiresAt: Date;
     };
     include: {
-      user: true;
+      user: {
+        include: {
+          passkeys: true;
+        };
+      };
       issuedByUser: true;
     };
   }): Promise<SetupTokenWithRelations>;
   findUnique(args: {
     where: { tokenHash: string };
     include: {
-      user: true;
+      user: {
+        include: {
+          passkeys: true;
+        };
+      };
       issuedByUser: true;
     };
   }): Promise<SetupTokenWithRelations | null>;
@@ -36,7 +48,11 @@ export interface UserSetupTokenDelegateLike {
     where: { id: string };
     data: Partial<Pick<UserSetupToken, "usedAt" | "revokedAt">>;
     include: {
-      user: true;
+      user: {
+        include: {
+          passkeys: true;
+        };
+      };
       issuedByUser: true;
     };
   }): Promise<SetupTokenWithRelations>;
@@ -102,7 +118,11 @@ export async function createSetupToken(
       expiresAt: new Date(now.getTime() + (options.ttlMs ?? SETUP_TOKEN_TTL_MS)),
     },
     include: {
-      user: true,
+      user: {
+        include: {
+          passkeys: true,
+        },
+      },
       issuedByUser: true,
     },
   });
@@ -123,7 +143,11 @@ export async function findSetupToken(
       tokenHash: hashSetupToken(rawToken),
     },
     include: {
-      user: true,
+      user: {
+        include: {
+          passkeys: true,
+        },
+      },
       issuedByUser: true,
     },
   });
@@ -177,7 +201,11 @@ export async function consumeSetupToken(
       usedAt: now,
     },
     include: {
-      user: true,
+      user: {
+        include: {
+          passkeys: true,
+        },
+      },
       issuedByUser: true,
     },
   });

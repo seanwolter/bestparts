@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import HeaderAuthActions from "@/components/HeaderAuthActions";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,27 +9,32 @@ export const metadata: Metadata = {
     "A collection of the best parts from movies.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const currentUser = await getCurrentUser();
+
   return (
     <html lang="en">
       <body className="bg-neutral-950 text-neutral-100 min-h-screen antialiased">
         <header className="border-b border-neutral-800">
-          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
             <a href="/" className="flex items-center gap-2 group">
               <span className="text-2xl font-black tracking-tight text-white group-hover:text-yellow-400 transition-colors">
                 best<span className="text-yellow-400 group-hover:text-white transition-colors">parts</span>.biz
               </span>
             </a>
-            <a
-              href="/submit"
-              className="bg-yellow-400 hover:bg-yellow-300 text-neutral-950 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
-            >
-              + Submit a scene
-            </a>
+            <div className="flex items-center gap-3">
+              <a
+                href="/submit"
+                className="rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:bg-yellow-300"
+              >
+                + Submit a scene
+              </a>
+              <HeaderAuthActions currentUser={currentUser} />
+            </div>
           </div>
         </header>
         <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
