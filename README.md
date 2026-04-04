@@ -1,13 +1,63 @@
 # bestparts
-
-`bestparts` is a small Next.js app for collecting and browsing memorable movie scenes from YouTube. It uses Prisma with PostgreSQL for storage, and TMDB powers the movie title suggestions on the submit form.
+Just the best parts of movies!
 
 ## Requirements
 
+- npm and nvm
 - Node.js `20.9.0` or newer
-- npm
-- A running PostgreSQL database
+- A running PostgreSQL database (install postgres in advance or use Docker)
 - A TMDB read access token if you want movie title autocomplete
+
+## PostgreSQL setup
+
+You need a PostgreSQL database before running Prisma migrations. Choose one of these options.
+
+### Option 1: Local PostgreSQL
+
+If PostgreSQL is already installed on your machine, create a local database and point the app at it.
+
+1. Start PostgreSQL.
+2. Create a database:
+
+   ```bash
+   createdb bestparts
+   ```
+
+3. Set `DATABASE_URL` in `.env` using your local PostgreSQL credentials:
+
+   ```env
+   DATABASE_URL="postgresql://<username>:<password>@localhost:5432/bestparts?schema=public"
+   ```
+
+If your local PostgreSQL user does not use a password, this also works:
+
+```env
+DATABASE_URL="postgresql://<username>@localhost:5432/bestparts?schema=public"
+```
+
+### Option 2: Docker
+
+If you do not want to install PostgreSQL directly, run it in Docker:
+
+```bash
+docker run --name bestparts-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=bestparts \
+  -p 5432:5432 \
+  -d postgres:16
+```
+
+Then use this in `.env`:
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bestparts?schema=public"
+```
+
+If you stop the container later, restart it with:
+
+```bash
+docker start bestparts-postgres
+```
 
 ## Run locally
 
@@ -31,7 +81,7 @@
    cp .env.example .env
    ```
 
-4. Update `DATABASE_URL` in `.env` to point at your local PostgreSQL instance. Example:
+4. Update `DATABASE_URL` in `.env` to point at your PostgreSQL instance. Example:
 
    ```env
    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bestparts?schema=public"
@@ -54,7 +104,7 @@
 
 7. Open [http://localhost:3000](http://localhost:3000).
 
-## Useful scripts
+## Useful commands
 
 - `npm run dev` starts the Next.js dev server
 - `npm run build` generates the Prisma client, applies deploy migrations, and builds the app
