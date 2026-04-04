@@ -33,9 +33,7 @@ test.describe("browser auth hardening flows", () => {
     try {
       await page.goto(`/setup/${rawToken}`);
 
-      await expect(
-        page.getByRole("heading", { name: "Finish your first passkey registration." })
-      ).toBeVisible();
+      await expectSetupScreen(page);
 
       await page.getByRole("button", { name: "Register passkey" }).click();
 
@@ -144,17 +142,14 @@ test.describe("browser auth hardening flows", () => {
     const authenticator = await attachVirtualAuthenticator(page);
 
     try {
-      await authenticator.setResponseOverrideBits({
-        isBogusSignature: true,
-      });
+      await tamperSetupVerifyRequest(page);
 
       await page.goto(`/setup/${rawToken}`);
       await page.getByRole("button", { name: "Register passkey" }).click();
 
       await expect(page).toHaveURL(new RegExp(`/setup/${rawToken}$`));
-      await expect(
-        page.getByRole("heading", { name: "Finish your first passkey registration." })
-      ).toBeVisible();
+      await expectSetupScreen(page);
+      await expect(getFormAlert(page, "Passkey setup failed.")).toBeVisible();
 
       const user = await prisma.user.findUnique({
         where: {
@@ -175,9 +170,50 @@ test.describe("browser auth hardening flows", () => {
 
 async function completeSetup(page: Page, rawToken: string) {
   await page.goto(`/setup/${rawToken}`);
+  await expectSetupScreen(page);
   await page.getByRole("button", { name: "Register passkey" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
+}
+
+async function expectSetupScreen(page: Page) {
+  await expect(page.getByRole("heading", { name: "Complete passkey setup." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Register your passkey" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Register passkey" })).toBeVisible();
+}
+
+async function tamperSetupVerifyRequest(page: Page) {
+  await page.route("**/api/auth/setup/verify", async (route, request) => {
+    const payload = request.postDataJSON() as {
+      response?: {
+        response?: {
+          clientDataJSON?: string;
+        };
+      };
+    };
+    const clientDataJSON = payload.response?.response?.clientDataJSON;
+
+    if (clientDataJSON) {
+      payload.response!.response!.clientDataJSON = tamperBase64Url(clientDataJSON);
+    }
+
+    const headers = { ...request.headers() };
+    delete headers["content-length"];
+
+    await route.continue({
+      headers,
+      postData: JSON.stringify(payload),
+    });
+  });
+}
+
+function tamperBase64Url(value: string): string {
+  if (value.length === 0) {
+    return "A";
+  }
+
+  const lastCharacter = value.at(-1);
+  return `${value.slice(0, -1)}${lastCharacter === "A" ? "B" : "A"}`;
 }
 
 function getFormAlert(page: Page, text: string) {

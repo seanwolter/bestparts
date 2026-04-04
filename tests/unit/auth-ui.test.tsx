@@ -228,6 +228,36 @@ describe("auth UI", () => {
     expect(screen.getByText("Add another passkey")).toBeInTheDocument();
   });
 
+  it("shows the generic setup error and stays on the setup screen when verification fails", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          options: {
+            challenge: "setup-challenge",
+          },
+          user: {
+            username: "mark",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: "Passkey setup failed.",
+          },
+          { status: 400 }
+        )
+      );
+
+    render(<SetupPasskeyForm token="setup-token" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Register passkey" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Passkey setup failed.");
+    expect(screen.getByRole("heading", { name: "Register your passkey" })).toBeInTheDocument();
+    expect(mocks.routerPush).not.toHaveBeenCalled();
+  });
+
   it("posts logout and refreshes navigation", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ ok: true }));
 
