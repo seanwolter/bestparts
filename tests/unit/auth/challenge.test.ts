@@ -6,18 +6,21 @@ import {
   CeremonyStateError,
   resetConsumedCeremonyState,
 } from "@/lib/auth/challenge";
+import { createInMemoryAuthProtectionStore } from "@/lib/auth/protection-store";
 
 describe("challenge helpers", () => {
   const originalSecret = process.env.SESSION_SECRET;
+  let store = createInMemoryAuthProtectionStore();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     process.env.SESSION_SECRET = "test-session-secret";
-    resetConsumedCeremonyState();
+    store = createInMemoryAuthProtectionStore();
+    await resetConsumedCeremonyState(store);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     process.env.SESSION_SECRET = originalSecret;
-    resetConsumedCeremonyState();
+    await resetConsumedCeremonyState(store);
   });
 
   it("issues and reads signed ceremony state", () => {
@@ -34,31 +37,49 @@ describe("challenge helpers", () => {
     expect(cookie.name).toContain("login");
   });
 
-  it("clears ceremony cookies on consume", () => {
+  it("clears ceremony cookies on consume", async () => {
     const { cookie } = issueCeremonyState({
       flow: "setup",
       userId: "user_123",
     });
 
-    const consumed = consumeCeremonyState(cookie.value, "setup", {
-      userId: "user_123",
-    });
+    const consumed = await consumeCeremonyState(
+      cookie.value,
+      "setup",
+      {
+        userId: "user_123",
+      },
+      new Date(),
+      { store }
+    );
 
     expect(consumed.clearedCookie.value).toBe("");
     expect(consumed.clearedCookie.options.maxAge).toBe(0);
   });
 
-  it("rejects replayed ceremony state after it is consumed", () => {
+  it("rejects replayed ceremony state after it is consumed", async () => {
     const { cookie } = issueCeremonyState({
       flow: "login",
       username: "mark",
     });
 
-    consumeCeremonyState(cookie.value, "login", { username: "mark" });
+    await consumeCeremonyState(
+      cookie.value,
+      "login",
+      { username: "mark" },
+      new Date(),
+      { store }
+    );
 
-    expect(() =>
-      consumeCeremonyState(cookie.value, "login", { username: "mark" })
-    ).toThrowError(CeremonyStateError);
+    await expect(
+      consumeCeremonyState(
+        cookie.value,
+        "login",
+        { username: "mark" },
+        new Date(),
+        { store }
+      )
+    ).rejects.toThrowError(CeremonyStateError);
   });
 
   it("rejects expired ceremony state", () => {

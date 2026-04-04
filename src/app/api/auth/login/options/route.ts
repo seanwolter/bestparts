@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { UserStatus } from "@prisma/client";
-import { db } from "@/lib/db";
 import { issueCeremonyState } from "@/lib/auth/challenge";
 import {
   consumeThrottle,
@@ -11,7 +9,7 @@ import {
 import {
   AUTH_RATE_LIMIT_ERROR,
   applyCookie,
-  getClientIpAddress,
+  getAuthThrottleIpAddress,
   jsonError,
   parseJsonBody,
 } from "../../_shared";
@@ -28,37 +26,21 @@ export async function POST(request: NextRequest) {
     return jsonError(GENERIC_LOGIN_FAILURE_MESSAGE);
   }
 
-  const throttle = consumeThrottle(
-    getLoginThrottleKey(username, getClientIpAddress(request))
+  const throttle = await consumeThrottle(
+    getLoginThrottleKey(username, getAuthThrottleIpAddress(request))
   );
 
   if (!throttle.allowed) {
     return jsonError(AUTH_RATE_LIMIT_ERROR, 429);
   }
 
-  const user = await db.user.findUnique({
-    where: { username },
-    include: {
-      passkeys: true,
-    },
-  });
-
-  if (!user || user.status !== UserStatus.ACTIVE || user.passkeys.length === 0) {
-    return jsonError(GENERIC_LOGIN_FAILURE_MESSAGE);
-  }
-
   const { state, cookie } = issueCeremonyState({
     flow: "login",
-    userId: user.id,
-    username: user.username,
+    username,
   });
 
   const options = await createAuthenticationOptionsForUser({
     challenge: state.challenge,
-    passkeys: user.passkeys.map((passkey) => ({
-      credentialId: passkey.credentialId,
-      transports: passkey.transports,
-    })),
   });
 
   const response = NextResponse.json({

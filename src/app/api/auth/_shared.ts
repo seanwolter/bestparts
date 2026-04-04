@@ -3,6 +3,11 @@ import type { AuthCookieDescriptor } from "@/lib/auth/cookies";
 
 export const AUTH_RATE_LIMIT_ERROR = "Too many attempts. Please try again later.";
 export const INVALID_SETUP_TOKEN_ERROR = "Setup token is invalid or expired.";
+export const AUTH_TRUST_PROXY_HEADERS_ENV = "AUTH_TRUST_PROXY_HEADERS";
+const WEBAUTHN_CONFIGURATION_ERRORS = new Set([
+  "Missing WebAuthn configuration. Expected WEBAUTHN_RP_NAME, WEBAUTHN_RP_ID, and WEBAUTHN_ORIGIN.",
+  "WEBAUTHN_ORIGIN must contain at least one origin.",
+]);
 
 export async function parseJsonBody<T>(request: NextRequest): Promise<T | null> {
   try {
@@ -12,10 +17,21 @@ export async function parseJsonBody<T>(request: NextRequest): Promise<T | null> 
   }
 }
 
-export function getClientIpAddress(request: NextRequest): string | undefined {
+export function getAuthThrottleIpAddress(request: NextRequest): string | undefined {
+  if (!shouldTrustAuthProxyHeaders()) {
+    return undefined;
+  }
+
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim();
+    const firstForwardedAddress = forwardedFor
+      .split(",")
+      .map((value) => value.trim())
+      .find(Boolean);
+
+    if (firstForwardedAddress) {
+      return firstForwardedAddress;
+    }
   }
 
   const realIp = request.headers.get("x-real-ip")?.trim();
@@ -44,4 +60,16 @@ export function applyCookies(
 
 export function jsonError(message: string, status = 400): NextResponse {
   return NextResponse.json({ error: message }, { status });
+}
+
+export function isWebAuthnConfigurationError(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    WEBAUTHN_CONFIGURATION_ERRORS.has(error.message)
+  );
+}
+
+function shouldTrustAuthProxyHeaders(): boolean {
+  const value = process.env[AUTH_TRUST_PROXY_HEADERS_ENV]?.trim().toLowerCase();
+  return value === "1" || value === "true" || value === "yes" || value === "on";
 }

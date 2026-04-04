@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { UserStatus } from "@prisma/client";
+import { Prisma, UserStatus } from "@prisma/client";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { db } from "@/lib/db";
 import { buildSessionCookie } from "@/lib/auth/cookies";
 import { consumeCeremonyState, CeremonyStateError } from "@/lib/auth/challenge";
 import { createSession } from "@/lib/auth/session";
-import { getActiveSetupToken, consumeSetupToken } from "@/lib/auth/setup-token";
+import {
+  getActiveSetupToken,
+  consumeSetupToken,
+  hashSetupToken,
+} from "@/lib/auth/setup-token";
 import {
   GENERIC_SETUP_FAILURE_MESSAGE,
   consumeThrottle,
@@ -17,7 +21,8 @@ import {
   AUTH_RATE_LIMIT_ERROR,
   INVALID_SETUP_TOKEN_ERROR,
   applyCookies,
-  getClientIpAddress,
+  getAuthThrottleIpAddress,
+  isWebAuthnConfigurationError,
   jsonError,
   parseJsonBody,
 } from "../../_shared";
@@ -36,8 +41,8 @@ export async function POST(request: NextRequest) {
     return jsonError(GENERIC_SETUP_FAILURE_MESSAGE);
   }
 
-  const throttle = consumeThrottle(
-    getSetupThrottleKey(token, getClientIpAddress(request))
+  const throttle = await consumeThrottle(
+    getSetupThrottleKey(hashSetupToken(token), getAuthThrottleIpAddress(request))
   );
 
   if (!throttle.allowed) {
@@ -54,7 +59,7 @@ export async function POST(request: NextRequest) {
   let clearedCeremonyCookie;
 
   try {
-    const consumed = consumeCeremonyState(
+    const consumed = await consumeCeremonyState(
       request.cookies.get("bestparts_webauthn_setup")?.value,
       "setup",
       {
@@ -72,48 +77,79 @@ export async function POST(request: NextRequest) {
     throw error;
   }
 
-  const verification = await verifyRegistration({
-    response: registrationResponse,
-    expectedChallenge: ceremonyState.challenge,
-  });
+  let verification;
+
+  try {
+    verification = await verifyRegistration({
+      response: registrationResponse,
+      expectedChallenge: ceremonyState.challenge,
+    });
+  } catch (error) {
+    if (isWebAuthnConfigurationError(error)) {
+      throw error;
+    }
+
+    return jsonError(GENERIC_SETUP_FAILURE_MESSAGE);
+  }
 
   if (!verification.verified) {
     return jsonError(GENERIC_SETUP_FAILURE_MESSAGE);
   }
 
-  const result = await db.$transaction(async (tx) => {
-    const consumedToken = await consumeSetupToken(tx, token);
+  let result;
 
-    if (!consumedToken) {
-      throw new Error(INVALID_SETUP_TOKEN_ERROR);
+  try {
+    result = await db.$transaction(async (tx) => {
+      const consumedToken = await consumeSetupToken(tx, token);
+
+      if (!consumedToken) {
+        throw new Error(INVALID_SETUP_TOKEN_ERROR);
+      }
+
+      const passkey = mapVerifiedRegistrationToPasskey(
+        verification,
+        consumedToken.user.id,
+        registrationResponse.response.transports ?? []
+      );
+
+      await tx.passkey.create({
+        data: {
+          userId: consumedToken.user.id,
+          credentialId: passkey.credentialId,
+          publicKey: passkey.publicKey,
+          counter: passkey.counter,
+          transports: passkey.transports,
+          deviceType: passkey.deviceType,
+          backedUp: passkey.backedUp,
+          webAuthnUserID: passkey.webAuthnUserID,
+        },
+      });
+
+      await tx.user.update({
+        where: { id: consumedToken.user.id },
+        data: { status: UserStatus.ACTIVE },
+      });
+
+      return createSession(tx, consumedToken.user.id);
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === INVALID_SETUP_TOKEN_ERROR) {
+      return jsonError(INVALID_SETUP_TOKEN_ERROR);
     }
 
-    const passkey = mapVerifiedRegistrationToPasskey(
-      verification,
-      consumedToken.user.id,
-      registrationResponse.response.transports ?? []
-    );
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      console.error(
+        "Setup verification failed while persisting a verified passkey.",
+        error
+      );
+      return jsonError(GENERIC_SETUP_FAILURE_MESSAGE);
+    }
 
-    await tx.passkey.create({
-      data: {
-        userId: consumedToken.user.id,
-        credentialId: passkey.credentialId,
-        publicKey: passkey.publicKey,
-        counter: passkey.counter,
-        transports: passkey.transports,
-        deviceType: passkey.deviceType,
-        backedUp: passkey.backedUp,
-        webAuthnUserID: passkey.webAuthnUserID,
-      },
-    });
-
-    await tx.user.update({
-      where: { id: consumedToken.user.id },
-      data: { status: UserStatus.ACTIVE },
-    });
-
-    return createSession(tx, consumedToken.user.id);
-  });
+    throw error;
+  }
 
   const response = NextResponse.json({
     ok: true,

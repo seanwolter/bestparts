@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   PrismaClient,
   SetupTokenReason,
@@ -22,6 +22,15 @@ describe("auth schema persistence", () => {
     });
   });
 
+  beforeEach(async () => {
+    await prisma.authThrottleBucket.deleteMany();
+    await prisma.consumedCeremonyNonce.deleteMany();
+    await prisma.userSetupToken.deleteMany();
+    await prisma.session.deleteMany();
+    await prisma.passkey.deleteMany();
+    await prisma.user.deleteMany();
+  });
+
   afterAll(async () => {
     await prisma.$disconnect();
   });
@@ -37,6 +46,8 @@ describe("auth schema persistence", () => {
 
     const sessionToken = "integration-session-token";
     const setupToken = "integration-setup-token";
+    const throttleKeyHash = hashSetupToken("auth-schema-throttle");
+    const nonceKeyHash = hashSetupToken("auth-schema-nonce");
 
     await prisma.passkey.create({
       data: {
@@ -68,6 +79,21 @@ describe("auth schema persistence", () => {
       },
     });
 
+    await prisma.authThrottleBucket.create({
+      data: {
+        keyHash: throttleKeyHash,
+        count: 3,
+        resetAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    await prisma.consumedCeremonyNonce.create({
+      data: {
+        nonceKeyHash,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
     const loaded = await prisma.user.findUnique({
       where: { id: user.id },
       include: {
@@ -81,7 +107,28 @@ describe("auth schema persistence", () => {
     expect(loaded?.sessions).toHaveLength(1);
     expect(loaded?.setupTokens).toHaveLength(1);
     expect(loaded?.passkeys[0]?.credentialId).toBe("credential-123");
-    expect(loaded?.sessions[0]?.sessionTokenHash).toBe(hashSessionToken(sessionToken));
+    expect(loaded?.sessions[0]?.sessionTokenHash).toBe(
+      hashSessionToken(sessionToken)
+    );
     expect(loaded?.setupTokens[0]?.tokenHash).toBe(hashSetupToken(setupToken));
+    await expect(
+      prisma.authThrottleBucket.findUnique({
+        where: {
+          keyHash: throttleKeyHash,
+        },
+      })
+    ).resolves.toMatchObject({
+      keyHash: throttleKeyHash,
+      count: 3,
+    });
+    await expect(
+      prisma.consumedCeremonyNonce.findUnique({
+        where: {
+          nonceKeyHash,
+        },
+      })
+    ).resolves.toMatchObject({
+      nonceKeyHash,
+    });
   });
 });

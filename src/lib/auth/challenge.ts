@@ -7,6 +7,10 @@ import {
   type AuthFlow,
   type SignedCeremonyCookiePayload,
 } from "./cookies";
+import {
+  createPrismaAuthProtectionStore,
+  type AuthProtectionStore,
+} from "./protection-store";
 
 export const CEREMONY_TTL_MS = 10 * 60_000;
 
@@ -29,8 +33,7 @@ export interface CeremonyState extends CeremonyPrincipalBinding {
   expiresAt: Date;
   nonce: string;
 }
-
-const consumedCeremonyNonces = new Map<string, number>();
+const defaultAuthProtectionStore = createPrismaAuthProtectionStore();
 
 export interface IssueCeremonyStateOptions extends CeremonyPrincipalBinding {
   flow: AuthFlow;
@@ -52,7 +55,6 @@ export function issueCeremonyState(
   options: IssueCeremonyStateOptions
 ): { state: CeremonyState; cookie: AuthCookieDescriptor } {
   const now = options.now ?? new Date();
-  pruneConsumedCeremonyNonces(now);
   const expiresAt = new Date(now.getTime() + (options.ttlMs ?? CEREMONY_TTL_MS));
   const state: CeremonyState = {
     flow: options.flow,
@@ -77,8 +79,6 @@ export function readCeremonyState(
   expectedPrincipal?: CeremonyPrincipalBinding,
   now = new Date()
 ): CeremonyState {
-  pruneConsumedCeremonyNonces(now);
-
   if (!rawCookieValue) {
     throw new CeremonyStateError("missing", "Missing ceremony cookie.");
   }
@@ -111,12 +111,15 @@ export function readCeremonyState(
   return state;
 }
 
-export function consumeCeremonyState(
+export async function consumeCeremonyState(
   rawCookieValue: string | undefined,
   expectedFlow: AuthFlow,
   expectedPrincipal?: CeremonyPrincipalBinding,
-  now = new Date()
-): { state: CeremonyState; clearedCookie: AuthCookieDescriptor } {
+  now = new Date(),
+  options: {
+    store?: AuthProtectionStore;
+  } = {}
+): Promise<{ state: CeremonyState; clearedCookie: AuthCookieDescriptor }> {
   const state = readCeremonyState(
     rawCookieValue,
     expectedFlow,
@@ -124,13 +127,16 @@ export function consumeCeremonyState(
     now
   );
 
-  const nonceKey = getCeremonyNonceKey(state);
+  const consumed = await (options.store ?? defaultAuthProtectionStore).consumeCeremonyNonce(
+    state.flow,
+    state.nonce,
+    state.expiresAt,
+    now
+  );
 
-  if (consumedCeremonyNonces.has(nonceKey)) {
+  if (!consumed) {
     throw new CeremonyStateError("replayed", "Ceremony state was already used.");
   }
-
-  consumedCeremonyNonces.set(nonceKey, state.expiresAt.getTime());
 
   return {
     state,
@@ -138,8 +144,10 @@ export function consumeCeremonyState(
   };
 }
 
-export function resetConsumedCeremonyState(): void {
-  consumedCeremonyNonces.clear();
+export async function resetConsumedCeremonyState(
+  store: AuthProtectionStore = defaultAuthProtectionStore
+): Promise<void> {
+  await store.resetConsumedCeremonyNonces();
 }
 
 export function serializeCeremonyState(
@@ -208,18 +216,4 @@ function matchesPrincipal(
 function normalizePrincipalValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
-}
-
-function getCeremonyNonceKey(state: Pick<CeremonyState, "flow" | "nonce">): string {
-  return `${state.flow}:${state.nonce}`;
-}
-
-function pruneConsumedCeremonyNonces(now: Date): void {
-  const nowMs = now.getTime();
-
-  for (const [nonceKey, expiresAt] of consumedCeremonyNonces.entries()) {
-    if (expiresAt <= nowMs) {
-      consumedCeremonyNonces.delete(nonceKey);
-    }
-  }
 }

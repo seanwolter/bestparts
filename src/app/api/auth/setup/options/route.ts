@@ -6,7 +6,7 @@ import {
   AUTH_RATE_LIMIT_ERROR,
   INVALID_SETUP_TOKEN_ERROR,
   applyCookie,
-  getClientIpAddress,
+  getAuthThrottleIpAddress,
   jsonError,
   parseJsonBody,
 } from "../../_shared";
@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
     return jsonError(INVALID_SETUP_TOKEN_ERROR);
   }
 
-  const throttle = consumeThrottle(
-    getSetupThrottleKey(hashSetupToken(token), getClientIpAddress(request))
+  const throttle = await consumeThrottle(
+    getSetupThrottleKey(hashSetupToken(token), getAuthThrottleIpAddress(request))
   );
 
   if (!throttle.allowed) {

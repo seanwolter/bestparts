@@ -15,11 +15,17 @@ import {
   type VerifiedRegistrationResponse,
   type WebAuthnCredential,
 } from "@simplewebauthn/server";
+import {
+  createPrismaAuthProtectionStore,
+  type AuthProtectionStore,
+  type ThrottleDecision,
+} from "./protection-store";
 
 export const GENERIC_LOGIN_FAILURE_MESSAGE = "Authentication failed.";
 export const GENERIC_SETUP_FAILURE_MESSAGE = "Passkey setup failed.";
 export const DEFAULT_AUTH_THROTTLE_LIMIT = 5;
 export const DEFAULT_AUTH_THROTTLE_WINDOW_MS = 60_000;
+const defaultAuthProtectionStore = createPrismaAuthProtectionStore();
 
 export interface WebAuthnConfig {
   rpName: string;
@@ -51,19 +57,6 @@ export interface PersistablePasskey {
   backedUp: boolean;
   webAuthnUserID: string;
 }
-
-export interface ThrottleDecision {
-  allowed: boolean;
-  remaining: number;
-  retryAfterMs: number;
-}
-
-type ThrottleEntry = {
-  count: number;
-  resetAt: number;
-};
-
-const authThrottleStore = new Map<string, ThrottleEntry>();
 
 export function getWebAuthnConfig(): WebAuthnConfig {
   const rpName = process.env.WEBAUTHN_RP_NAME?.trim();
@@ -105,59 +98,42 @@ export function getWebAuthnUserIDBuffer(
 }
 
 export function getLoginThrottleKey(username: string, ipAddress?: string): string {
-  return `login:${username.trim().toLowerCase()}:${ipAddress ?? "unknown"}`;
+  const key = `login:${username.trim().toLowerCase()}`;
+  const normalizedIpAddress = ipAddress?.trim().toLowerCase();
+
+  return normalizedIpAddress ? `${key}:ip:${normalizedIpAddress}` : key;
 }
 
 export function getSetupThrottleKey(tokenHash: string, ipAddress?: string): string {
-  return `setup:${tokenHash}:${ipAddress ?? "unknown"}`;
+  const key = `setup:${tokenHash.trim().toLowerCase()}`;
+  const normalizedIpAddress = ipAddress?.trim().toLowerCase();
+
+  return normalizedIpAddress ? `${key}:ip:${normalizedIpAddress}` : key;
 }
 
-export function consumeThrottle(
+export async function consumeThrottle(
   key: string,
-  options: { limit?: number; windowMs?: number; now?: number } = {}
-): ThrottleDecision {
+  options: {
+    limit?: number;
+    windowMs?: number;
+    now?: number;
+    store?: AuthProtectionStore;
+  } = {}
+): Promise<ThrottleDecision> {
   const limit = options.limit ?? DEFAULT_AUTH_THROTTLE_LIMIT;
   const windowMs = options.windowMs ?? DEFAULT_AUTH_THROTTLE_WINDOW_MS;
-  const now = options.now ?? Date.now();
-  const entry = authThrottleStore.get(key);
-
-  if (!entry || entry.resetAt <= now) {
-    authThrottleStore.set(key, {
-      count: 1,
-      resetAt: now + windowMs,
-    });
-
-    return {
-      allowed: true,
-      remaining: limit - 1,
-      retryAfterMs: 0,
-    };
-  }
-
-  if (entry.count >= limit) {
-    return {
-      allowed: false,
-      remaining: 0,
-      retryAfterMs: Math.max(entry.resetAt - now, 0),
-    };
-  }
-
-  entry.count += 1;
-
-  return {
-    allowed: true,
-    remaining: Math.max(limit - entry.count, 0),
-    retryAfterMs: 0,
-  };
+  return (options.store ?? defaultAuthProtectionStore).consumeThrottle(key, {
+    limit,
+    windowMs,
+    now: options.now,
+  });
 }
 
-export function resetThrottle(key?: string): void {
-  if (key) {
-    authThrottleStore.delete(key);
-    return;
-  }
-
-  authThrottleStore.clear();
+export async function resetThrottle(
+  key?: string,
+  store: AuthProtectionStore = defaultAuthProtectionStore
+): Promise<void> {
+  await store.resetThrottle(key);
 }
 
 export function toWebAuthnCredential(

@@ -99,6 +99,7 @@ SESSION_SECRET="replace-with-a-long-random-secret"
 WEBAUTHN_RP_NAME="bestparts"
 WEBAUTHN_RP_ID="localhost"
 WEBAUTHN_ORIGIN="http://localhost:3000"
+AUTH_TRUST_PROXY_HEADERS="false"
 
 TMDB_TOKEN="your_tmdb_read_access_token"
 ```
@@ -106,6 +107,8 @@ TMDB_TOKEN="your_tmdb_read_access_token"
 `TMDB_TOKEN` is optional for basic use, but movie title suggestions will not work without it.
 
 `SESSION_SECRET`, `WEBAUTHN_RP_NAME`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_ORIGIN` are required for the passkey auth flows and should be set to real local values before signing in or registering passkeys.
+
+`AUTH_TRUST_PROXY_HEADERS` is optional. Leave it `false` unless your deployment sits behind a trusted proxy or load balancer that overwrites `X-Forwarded-For` or `X-Real-IP` before traffic reaches the app.
 
 5. Create the database schema locally.
 
@@ -139,7 +142,37 @@ npm run db:test:reset
 
 `db:test:reset` uses [tests/setup/test-db.ts](/Users/seanzach/DEV/bestparts/tests/setup/test-db.ts) and refuses to run if `DATABASE_URL_TEST` is missing or exactly matches `DATABASE_URL`.
 
-## Bootstrap first admin
+## Security Shit
+### Auth throttle policy
+
+The public auth routes intentionally do not trust `X-Forwarded-For` or `X-Real-IP` by default.
+
+- Login throttling keys off the normalized submitted username.
+- Setup throttling keys off the hashed setup token value.
+- Rotating spoofed forwarding headers should not create fresh throttle buckets in the default configuration.
+
+If you deploy behind a proxy that overwrites forwarding headers and you want auth throttling to include the proxy-derived client IP, set `AUTH_TRUST_PROXY_HEADERS=true`.
+
+Only enable that mode when the proxy is part of your deployment boundary and the app is not reachable in a way that lets clients supply those headers directly. If that guarantee does not hold, leave the setting off.
+
+### Auth protection storage
+
+Replay markers and auth throttle buckets now live in PostgreSQL instead of process-local memory.
+
+- `ConsumedCeremonyNonce` stores hashed ceremony nonce identifiers until each ceremony expires.
+- `AuthThrottleBucket` stores hashed throttle keys and reset windows for the public auth routes.
+- Expired rows are pruned opportunistically during auth reads and writes, so normal traffic gradually cleans up old protection state without a separate required cron job.
+- Because the protection state is shared, replay rejection and throttling remain effective across app restarts and across multiple app instances that use the same database.
+
+### Login failure behavior
+
+The login flow is intentionally non-distinguishing.
+
+- `/api/auth/login/options` returns the same outward success behavior for real and fake usernames.
+- `/api/auth/login/verify` returns the same generic `Authentication failed.` error for unknown usernames, wrong passkeys, malformed WebAuthn payloads, expired or missing ceremony state, and replayed ceremonies.
+- Avoid changing the status codes, response shapes, or visible UI messaging in a way that reveals whether a username exists.
+
+### Bootstrap first admin
 
 The first admin bootstrap path uses a one-time CLI script, not direct seed data.
 
@@ -163,7 +196,7 @@ Behavior:
 
 The printed setup URL is the out-of-band bootstrap path for first-time passkey enrollment. Keep it private.
 
-## Admin user management
+### Admin user management
 
 After the first admin has completed setup and can sign in, the app exposes `/admin/users` for day-to-day user management.
 

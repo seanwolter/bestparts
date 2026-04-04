@@ -15,7 +15,8 @@ import {
 import {
   AUTH_RATE_LIMIT_ERROR,
   applyCookies,
-  getClientIpAddress,
+  getAuthThrottleIpAddress,
+  isWebAuthnConfigurationError,
   jsonError,
   parseJsonBody,
 } from "../../_shared";
@@ -34,35 +35,23 @@ export async function POST(request: NextRequest) {
     return jsonError(GENERIC_LOGIN_FAILURE_MESSAGE);
   }
 
-  const throttle = consumeThrottle(
-    getLoginThrottleKey(username, getClientIpAddress(request))
+  const throttle = await consumeThrottle(
+    getLoginThrottleKey(username, getAuthThrottleIpAddress(request))
   );
 
   if (!throttle.allowed) {
     return jsonError(AUTH_RATE_LIMIT_ERROR, 429);
   }
 
-  const user = await db.user.findUnique({
-    where: { username },
-    include: {
-      passkeys: true,
-    },
-  });
-
-  if (!user || user.status !== UserStatus.ACTIVE || user.passkeys.length === 0) {
-    return jsonError(GENERIC_LOGIN_FAILURE_MESSAGE);
-  }
-
   let ceremonyState;
   let clearedCeremonyCookie;
 
   try {
-    const consumed = consumeCeremonyState(
+    const consumed = await consumeCeremonyState(
       request.cookies.get("bestparts_webauthn_login")?.value,
       "login",
       {
-        userId: user.id,
-        username: user.username,
+        username,
       }
     );
     ceremonyState = consumed.state;
@@ -75,24 +64,43 @@ export async function POST(request: NextRequest) {
     throw error;
   }
 
-  const passkey = user.passkeys.find(
-    (entry) => entry.credentialId === authenticationResponse.id
-  );
+  const passkey = await db.passkey.findUnique({
+    where: {
+      credentialId: authenticationResponse.id,
+    },
+    include: {
+      user: true,
+    },
+  });
 
-  if (!passkey) {
+  if (
+    !passkey ||
+    passkey.user.status !== UserStatus.ACTIVE ||
+    passkey.user.username !== username
+  ) {
     return jsonError(GENERIC_LOGIN_FAILURE_MESSAGE);
   }
 
-  const verification = await verifyAuthentication({
-    response: authenticationResponse,
-    expectedChallenge: ceremonyState.challenge,
-    passkey: {
-      credentialId: passkey.credentialId,
-      publicKey: passkey.publicKey,
-      counter: passkey.counter,
-      transports: passkey.transports,
-    },
-  });
+  let verification;
+
+  try {
+    verification = await verifyAuthentication({
+      response: authenticationResponse,
+      expectedChallenge: ceremonyState.challenge,
+      passkey: {
+        credentialId: passkey.credentialId,
+        publicKey: passkey.publicKey,
+        counter: passkey.counter,
+        transports: passkey.transports,
+      },
+    });
+  } catch (error) {
+    if (isWebAuthnConfigurationError(error)) {
+      throw error;
+    }
+
+    return jsonError(GENERIC_LOGIN_FAILURE_MESSAGE);
+  }
 
   if (!verification.verified) {
     return jsonError(GENERIC_LOGIN_FAILURE_MESSAGE);
@@ -110,12 +118,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return createSession(tx, user.id);
+    return createSession(tx, passkey.user.id);
   });
 
   const response = NextResponse.json({
     ok: true,
-    username: user.username,
+    username: passkey.user.username,
   });
 
   applyCookies(response, [
