@@ -33,7 +33,11 @@ function getErrorMessage(payload: AuthErrorResponse | null, fallback: string): s
   return message ? message : fallback;
 }
 
-export default function LoginForm() {
+export default function LoginForm({
+  nextPath = "/",
+}: {
+  nextPath?: string;
+}) {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +101,7 @@ export default function LoginForm() {
         return;
       }
 
-      router.push("/");
+      router.push(nextPath);
       router.refresh();
     } catch {
       setError(GENERIC_LOGIN_FAILURE_MESSAGE);

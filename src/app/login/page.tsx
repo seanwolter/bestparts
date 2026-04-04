@@ -2,7 +2,22 @@ import LoginForm from "@/components/LoginForm";
 
 export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
+function normalizeNextPath(nextPath: string | undefined): string {
+  if (!nextPath || !nextPath.startsWith("/") || nextPath.startsWith("//")) {
+    return "/";
+  }
+
+  return nextPath;
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const nextPath = normalizeNextPath(resolvedSearchParams.next);
+
   return (
     <div className="mx-auto grid max-w-5xl gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
       <section className="space-y-5">
@@ -20,7 +35,7 @@ export default function LoginPage() {
       </section>
 
       <section className="rounded-3xl border border-neutral-800 bg-neutral-950/80 p-6 shadow-2xl shadow-black/20">
-        <LoginForm />
+        <LoginForm nextPath={nextPath} />
         <p className="mt-5 text-sm leading-6 text-neutral-500">
           Unknown usernames and failed passkey checks return the same generic
           error by design.

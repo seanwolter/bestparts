@@ -24,100 +24,100 @@ If PostgreSQL is already installed on your machine, create a local database and 
 1. Start PostgreSQL. You probably installed if via homebrew.
 2. Create the app and test databases:
 
-   ```bash
-   createdb bestparts
-   createdb bestparts_test
-   ```
+```bash
+createdb bestparts
+createdb bestparts_test
+```
    
 3. Set both database URLs in `.env` using your local PostgreSQL credentials. If you used the default setup there won't be a password. Your username should match your login username.
 
-   ```env
-   DATABASE_URL="postgresql://<username>@localhost:5432/bestparts?schema=public"
-   DATABASE_URL_TEST="postgresql://<username>@localhost:5432/bestparts_test?schema=public"
-   ```
+```env
+DATABASE_URL="postgresql://<username>@localhost:5432/bestparts?schema=public"
+DATABASE_URL_TEST="postgresql://<username>@localhost:5432/bestparts_test?schema=public"
+```
 
 ### Option 2: Docker
 
 If you do not want to install PostgreSQL directly, run it in Docker:
 
-   ```bash
-   docker run --name bestparts-postgres \
-     -e POSTGRES_PASSWORD=postgres \
-     -e POSTGRES_DB=bestparts \
-     -p 5432:5432 \
-     -d postgres:16
-   ```
+```bash
+docker run --name bestparts-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=bestparts \
+  -p 5432:5432 \
+  -d postgres:16
+```
 
 Create the separate test database after the container is running:
 
-   ```bash
-   docker exec bestparts-postgres createdb -U postgres bestparts_test
-   ```
+```bash
+docker exec bestparts-postgres createdb -U postgres bestparts_test
+```
 
 Then use this in `.env`:
 
-   ```env
-   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bestparts?schema=public"
-   DATABASE_URL_TEST="postgresql://postgres:postgres@localhost:5432/bestparts_test?schema=public"
-   ```
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bestparts?schema=public"
+DATABASE_URL_TEST="postgresql://postgres:postgres@localhost:5432/bestparts_test?schema=public"
+```
 
 If you stop the container later, restart it with:
 
-   ```bash
-   docker start bestparts-postgres
-   ```
+```bash
+docker start bestparts-postgres
+```
 
 ## Run locally
 
 1. Install the required Node.js version.
 
-   ```bash
-   nvm use
-   ```
+```bash
+nvm use
+```
 
    If you do not use `nvm`, install Node `20.9.0` or newer manually.
 
 2. Install dependencies.
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
 3. Create your local environment file.
 
-   ```bash
-   cp .env.example .env
-   ```
+```bash
+cp .env.example .env
+```
 
 4. Update `DATABASE_URL` in `.env` to point at your PostgreSQL instance. Example:
 
-   ```env
-   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bestparts?schema=public"
-   DATABASE_URL_TEST="postgresql://postgres:postgres@localhost:5432/bestparts_test?schema=public"
-   
-   SESSION_SECRET="replace-with-a-long-random-secret"
-   WEBAUTHN_RP_NAME="bestparts"
-   WEBAUTHN_RP_ID="localhost"
-   WEBAUTHN_ORIGIN="http://localhost:3000"
-   
-   TMDB_TOKEN="your_tmdb_read_access_token"
-   ```
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bestparts?schema=public"
+DATABASE_URL_TEST="postgresql://postgres:postgres@localhost:5432/bestparts_test?schema=public"
 
-   `TMDB_TOKEN` is optional for basic use, but movie title suggestions will not work without it.
+SESSION_SECRET="replace-with-a-long-random-secret"
+WEBAUTHN_RP_NAME="bestparts"
+WEBAUTHN_RP_ID="localhost"
+WEBAUTHN_ORIGIN="http://localhost:3000"
 
-   `SESSION_SECRET`, `WEBAUTHN_RP_NAME`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_ORIGIN` are now part of the required auth configuration surface for the passkey work. They are placeholders until the auth routes are implemented.
+TMDB_TOKEN="your_tmdb_read_access_token"
+```
+
+`TMDB_TOKEN` is optional for basic use, but movie title suggestions will not work without it.
+
+`SESSION_SECRET`, `WEBAUTHN_RP_NAME`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_ORIGIN` are required for the passkey auth flows and should be set to real local values before signing in or registering passkeys.
 
 5. Create the database schema locally.
 
-   ```bash
-   npm run db:migrate
-   ```
+```bash
+npm run db:migrate
+```
 
 6. Start the development server.
 
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run dev
+```
 
 7. Open [http://localhost:3000](http://localhost:3000).
 
@@ -162,6 +162,17 @@ Behavior:
 - Refuses to run if a different user already exists, so it does not silently mutate an initialized system
 
 The printed setup URL is the out-of-band bootstrap path for first-time passkey enrollment. Keep it private.
+
+## Admin user management
+
+After the first admin has completed setup and can sign in, the app exposes `/admin/users` for day-to-day user management.
+
+From there an authenticated admin can:
+
+- create another username-only admin in `PENDING_SETUP`
+- issue an initial enrollment link
+- issue an add-passkey link for a user who already has a working passkey
+- run a recovery flow that revokes existing passkeys, sessions, and outstanding setup links before issuing a replacement URL
 
 ## Useful commands
 

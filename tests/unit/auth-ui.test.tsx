@@ -97,6 +97,31 @@ describe("auth UI", () => {
     expect(mocks.routerRefresh).toHaveBeenCalled();
   });
 
+  it("redirects to the requested next path after login", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          options: {
+            challenge: "login-challenge",
+          },
+        })
+      )
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+    render(<LoginForm nextPath="/admin/users" />);
+
+    fireEvent.change(screen.getByLabelText("Username"), {
+      target: { value: "mark" },
+    });
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Continue with passkey" }).closest("form")!
+    );
+
+    await waitFor(() => {
+      expect(mocks.routerPush).toHaveBeenCalledWith("/admin/users");
+    });
+  });
+
   it("shows the generic login error when login options fail", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(
