@@ -119,8 +119,22 @@ model Video {
   sceneTitle        String
   description       String?
   submittedAt       DateTime @default(now())
+  upvoteCount       Int      @default(0)
   submittedByUserId String?
   submittedBy       User?    @relation(fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  upvotes           VideoUpvote[]
 
   @@index([submittedByUserId])
+  @@index([upvoteCount, submittedAt])
+}
+
+model VideoUpvote {
+  id           String   @id @default(cuid())
+  videoId      Int
+  voterKeyHash String
+  createdAt    DateTime @default(now())
+  video        Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+  @@index([videoId, voterKeyHash, createdAt])
 }
