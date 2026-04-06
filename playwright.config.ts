@@ -5,6 +5,7 @@ import {
 } from "./tests/setup/playwright-env";
 
 const baseURL = getPlaywrightBaseUrl();
+const webServerHealthUrl = new URL("/api/health", baseURL).toString();
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -23,7 +24,7 @@ export default defineConfig({
     : {
         command: "npm run dev -- --hostname localhost --port 3001",
         env: createPlaywrightWebServerEnv(),
-        url: baseURL,
+        url: webServerHealthUrl,
         reuseExistingServer: false,
         timeout: 120_000,
       },

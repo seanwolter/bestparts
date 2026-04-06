@@ -5,6 +5,11 @@ import {
   UserStatus,
 } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  assertSameOriginMutationRequest,
+  jsonForbidden,
+  MutationOriginError,
+} from "@/app/api/_shared";
 import { db } from "@/lib/db";
 import { requireApiAdmin } from "@/lib/auth/route-auth";
 import {
@@ -29,6 +34,16 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
+    assertSameOriginMutationRequest(request);
+  } catch (error) {
+    if (error instanceof MutationOriginError) {
+      return jsonForbidden();
+    }
+
+    throw error;
+  }
+
   const currentUser = await requireApiAdmin(request);
 
   if (currentUser instanceof NextResponse) {

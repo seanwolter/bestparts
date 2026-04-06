@@ -21,10 +21,18 @@ function createRequest(
     cookies?: Record<string, string>;
   } = {}
 ) {
+  const method = options.method ?? "POST";
   const headers = new Headers();
 
   if (options.body) {
     headers.set("content-type", "application/json");
+  }
+
+  if (
+    ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()) &&
+    !headers.has("origin")
+  ) {
+    headers.set("origin", "http://localhost");
   }
 
   if (options.cookies) {
@@ -37,7 +45,7 @@ function createRequest(
   }
 
   return new NextRequest(`http://localhost${path}`, {
-    method: options.method ?? "POST",
+    method,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -53,6 +61,7 @@ describe("admin user management routes", () => {
   });
 
   beforeEach(async () => {
+    await prisma.videoUpvote.deleteMany();
     await prisma.video.deleteMany();
     await prisma.userSetupToken.deleteMany();
     await prisma.session.deleteMany();
@@ -79,6 +88,27 @@ describe("admin user management routes", () => {
     });
 
     return { admin, sessionToken };
+  }
+
+  async function createPendingSession() {
+    const user = await prisma.user.create({
+      data: {
+        username: "pending-admin",
+        role: UserRole.ADMIN,
+        status: UserStatus.PENDING_SETUP,
+      },
+    });
+    const sessionToken = "pending-admin-session-token";
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        sessionTokenHash: hashSessionToken(sessionToken),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    return { user, sessionToken };
   }
 
   it("creates a pending admin user with an initial setup token", async () => {
@@ -272,5 +302,69 @@ describe("admin user management routes", () => {
     expect(allTokens[1]?.reason).toBe(SetupTokenReason.RECOVERY);
     expect(allTokens[1]?.usedAt).toBeNull();
     expect(allTokens[1]?.revokedAt).toBeNull();
+  });
+
+  it("rejects pending users from admin-only user management routes without changing state", async () => {
+    const { sessionToken } = await createPendingSession();
+    const targetUser = await prisma.user.create({
+      data: {
+        username: "existing-target-user",
+        role: UserRole.ADMIN,
+        status: UserStatus.ACTIVE,
+      },
+    });
+
+    const createUserResponse = await createUserPost(
+      createRequest("/api/users", {
+        body: {
+          username: "blocked-created-user",
+        },
+        cookies: {
+          [SESSION_COOKIE_NAME]: sessionToken,
+        },
+      })
+    );
+    const issueSetupTokenResponse = await issueSetupTokenPost(
+      createRequest(`/api/users/${targetUser.id}/setup-token`, {
+        body: {
+          reason: "INITIAL_ENROLLMENT",
+        },
+        cookies: {
+          [SESSION_COOKIE_NAME]: sessionToken,
+        },
+      }),
+      { params: Promise.resolve({ id: targetUser.id }) }
+    );
+
+    for (const response of [createUserResponse, issueSetupTokenResponse]) {
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toEqual({
+        error: "An active user account is required.",
+      });
+    }
+
+    await expect(
+      prisma.user.findUnique({
+        where: {
+          username: "blocked-created-user",
+        },
+      })
+    ).resolves.toBeNull();
+    await expect(
+      prisma.userSetupToken.count({
+        where: {
+          userId: targetUser.id,
+        },
+      })
+    ).resolves.toBe(0);
+    await expect(
+      prisma.user.findUnique({
+        where: {
+          id: targetUser.id,
+        },
+      })
+    ).resolves.toMatchObject({
+      status: UserStatus.ACTIVE,
+    });
   });
 });

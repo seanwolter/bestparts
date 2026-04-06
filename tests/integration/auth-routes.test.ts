@@ -47,8 +47,16 @@ function createRequest(
     headers?: Record<string, string>;
   } = {}
 ) {
+  const method = options.method ?? "POST";
   const headers = new Headers();
   headers.set("content-type", "application/json");
+
+  if (
+    ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()) &&
+    !headers.has("origin")
+  ) {
+    headers.set("origin", "http://localhost");
+  }
 
   if (options.cookies) {
     headers.set(
@@ -66,7 +74,7 @@ function createRequest(
   }
 
   return new NextRequest(`http://localhost${path}`, {
-    method: options.method ?? "POST",
+    method,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -85,6 +93,8 @@ describe("auth route handlers", () => {
     vi.clearAllMocks();
     await prisma.authThrottleBucket.deleteMany();
     await prisma.consumedCeremonyNonce.deleteMany();
+    await prisma.videoUpvote.deleteMany();
+    await prisma.video.deleteMany();
 
     mockFns.createRegistrationOptionsForUser.mockResolvedValue({
       challenge: "setup-challenge",

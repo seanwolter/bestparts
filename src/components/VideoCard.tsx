@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { getThumbnailUrl } from "@/lib/youtube";
 import VideoModal from "./VideoModal";
 import EditModal from "./EditModal";
+import UpvoteButton from "./UpvoteButton";
 
 interface VideoCardProps {
   id: number;
@@ -14,6 +15,8 @@ interface VideoCardProps {
   sceneTitle: string;
   description: string | null;
   submittedAt: Date;
+  upvoteCount?: number;
+  nextEligibleUpvoteAt?: Date | null;
   canManage?: boolean;
 }
 
@@ -24,6 +27,8 @@ export default function VideoCard({
   sceneTitle,
   description,
   submittedAt,
+  upvoteCount = 0,
+  nextEligibleUpvoteAt = null,
   canManage = false,
 }: VideoCardProps) {
   const router = useRouter();
@@ -97,10 +102,17 @@ export default function VideoCard({
               {description}
             </p>
           )}
-          <div className="flex items-center justify-between mt-auto pt-3">
-            <p className="text-neutral-600 text-xs">{formattedDate}</p>
+          <div className="mt-auto pt-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-neutral-600 text-xs">{formattedDate}</p>
+              <UpvoteButton
+                videoId={id}
+                upvoteCount={upvoteCount}
+                nextEligibleUpvoteAt={nextEligibleUpvoteAt}
+              />
+            </div>
             {canManage && (
-              <div className="flex gap-2">
+              <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => setEditing(true)}
                   className="text-neutral-600 hover:text-neutral-300 text-xs transition-colors"

@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  assertSameOriginMutationRequest,
+  jsonForbidden,
+  MutationOriginError,
+} from "@/app/api/_shared";
 import { db } from "@/lib/db";
 import { requireApiSession } from "@/lib/auth/route-auth";
 import { extractYouTubeId } from "@/lib/youtube";
@@ -17,6 +22,16 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    assertSameOriginMutationRequest(req);
+  } catch (error) {
+    if (error instanceof MutationOriginError) {
+      return jsonForbidden();
+    }
+
+    throw error;
+  }
+
   const currentUser = await requireApiSession(req);
 
   if (currentUser instanceof NextResponse) {

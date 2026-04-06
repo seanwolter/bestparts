@@ -22,6 +22,7 @@ export function createE2EPrismaClient(): PrismaClient {
 export async function resetE2EDatabase(prisma: PrismaClient): Promise<void> {
   await prisma.authThrottleBucket.deleteMany();
   await prisma.consumedCeremonyNonce.deleteMany();
+  await prisma.videoUpvote.deleteMany();
   await prisma.video.deleteMany();
   await prisma.userSetupToken.deleteMany();
   await prisma.session.deleteMany();
@@ -37,6 +38,29 @@ export async function seedGuestVideo(prisma: PrismaClient): Promise<void> {
       sceneTitle: "Downtown shootout",
       description: "Chaos on the street.",
     },
+  });
+}
+
+export async function seedGuestSortScenario(prisma: PrismaClient): Promise<void> {
+  await prisma.video.createMany({
+    data: [
+      {
+        youtubeId: "oldscene001",
+        movieTitle: "Heat",
+        sceneTitle: "Already top voted",
+        description: "The current leader.",
+        submittedAt: new Date("2026-04-03T20:00:00.000Z"),
+        upvoteCount: 2,
+      },
+      {
+        youtubeId: "newscene002",
+        movieTitle: "Arrival",
+        sceneTitle: "Almost top voted",
+        description: "One vote behind.",
+        submittedAt: new Date("2026-04-04T20:00:00.000Z"),
+        upvoteCount: 1,
+      },
+    ],
   });
 }
 

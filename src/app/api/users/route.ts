@@ -1,5 +1,10 @@
 import { Prisma, SetupTokenReason, UserRole, UserStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  assertSameOriginMutationRequest,
+  jsonForbidden,
+  MutationOriginError,
+} from "@/app/api/_shared";
 import { db } from "@/lib/db";
 import { createSetupToken } from "@/lib/auth/setup-token";
 import { requireApiAdmin } from "@/lib/auth/route-auth";
@@ -10,6 +15,16 @@ interface CreateUserBody {
 }
 
 export async function POST(request: NextRequest) {
+  try {
+    assertSameOriginMutationRequest(request);
+  } catch (error) {
+    if (error instanceof MutationOriginError) {
+      return jsonForbidden();
+    }
+
+    throw error;
+  }
+
   const currentUser = await requireApiAdmin(request);
 
   if (currentUser instanceof NextResponse) {
