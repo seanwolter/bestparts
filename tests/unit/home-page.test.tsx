@@ -69,7 +69,7 @@ describe("Home page", () => {
     mocks.findVideoUpvotes.mockResolvedValue([]);
   });
 
-  it("defaults to top-voted ordering with deterministic tie-breakers", async () => {
+  it("defaults to newest ordering with deterministic tie-breakers", async () => {
     mocks.findVideos.mockResolvedValue([
       createVideo({
         id: 2,
@@ -93,15 +93,15 @@ describe("Home page", () => {
 
     expect(mocks.findVideos).toHaveBeenCalledWith({
       orderBy: [
-        { upvoteCount: "desc" },
         { submittedAt: "desc" },
+        { upvoteCount: "desc" },
         { id: "desc" },
       ],
     });
     expect(
       screen.getAllByTestId("video-card").map((card) => card.textContent)
     ).toEqual(["Higher votes", "Lower votes"]);
-    expect(screen.getByTestId("home-sort-controls")).toHaveTextContent("votes");
+    expect(screen.getByTestId("home-sort-controls")).toHaveTextContent("date");
   });
 
   it("supports newest ordering via the sort query param", async () => {

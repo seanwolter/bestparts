@@ -17,13 +17,13 @@ describe("UpvoteButton", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-05T21:00:00.000Z"));
-    window.localStorage.clear();
+    clearStoredCooldown(1);
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
-    window.localStorage.clear();
+    clearStoredCooldown(1);
   });
 
   it("renders the vote label and count", () => {
@@ -224,6 +224,10 @@ function readStoredCooldown(videoId: number) {
   );
 
   return rawValue ? JSON.parse(rawValue) : null;
+}
+
+function clearStoredCooldown(videoId: number) {
+  window.localStorage.removeItem(`bestparts:upvote-cooldown:${videoId}`);
 }
 
 async function settle() {

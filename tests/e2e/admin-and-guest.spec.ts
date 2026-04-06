@@ -43,7 +43,7 @@ test.describe("browser auth and admin flows", () => {
     ).toBeVisible();
   });
 
-  test("guest upvoting uses vote sorting by default and preserves cooldown across reloads", async ({
+  test("guest upvoting reorders the default newest view after voting and preserves cooldown across reloads", async ({
     page,
   }) => {
     await seedGuestSortScenario(prisma);
@@ -58,13 +58,13 @@ test.describe("browser auth and admin flows", () => {
 
     await page.goto("/");
 
-    await expect(page.getByRole("link", { name: "Top voted" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "Newest" })).toHaveAttribute(
       "aria-current",
       "page"
     );
     await expect.poll(() => getSceneTitleOrder(page)).toEqual([
-      "Already top voted",
       "Almost top voted",
+      "Already top voted",
     ]);
 
     const almostTopCard = getVideoCard(page, "Almost top voted");
@@ -88,6 +88,11 @@ test.describe("browser auth and admin flows", () => {
     ]);
 
     await page.goto("/");
+
+    await expect(page.getByRole("link", { name: "Newest" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
 
     const voteButtonAfterReturn = getVideoCard(page, "Almost top voted").getByRole(
       "button",
