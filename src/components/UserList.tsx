@@ -15,6 +15,12 @@ export interface AdminUserListItem {
     usedAt: Date | null;
     revokedAt: Date | null;
   } | null;
+  submissions: {
+    id: number;
+    movieTitle: string;
+    sceneTitle: string;
+    submittedAt: Date;
+  }[];
 }
 
 function describeLatestTokenState(user: AdminUserListItem): string {
@@ -98,6 +104,36 @@ export default function UserList({
                     <p className="mt-2 text-sm text-neutral-500">
                       No setup link issued yet.
                     </p>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-neutral-800 bg-black/20 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-500">
+                    Submissions ({user.submissions.length})
+                  </p>
+                  {user.submissions.length === 0 ? (
+                    <p className="mt-2 text-sm text-neutral-500">No submissions yet.</p>
+                  ) : (
+                    <ul className="mt-2 space-y-2">
+                      {user.submissions.map((video) => (
+                        <li key={video.id} className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-neutral-200">
+                              {video.sceneTitle}
+                            </p>
+                            <p className="text-xs text-neutral-500">{video.movieTitle}</p>
+                          </div>
+                          <p className="shrink-0 text-xs text-neutral-600">
+                            {new Date(video.submittedAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              timeZone: "UTC",
+                            })}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               </div>

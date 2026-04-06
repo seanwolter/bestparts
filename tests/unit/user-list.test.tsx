@@ -28,6 +28,7 @@ function createUser(overrides: Partial<AdminUserListItem> = {}): AdminUserListIt
       usedAt: null,
       revokedAt: null,
     },
+    submissions: [],
     ...overrides,
   };
 }

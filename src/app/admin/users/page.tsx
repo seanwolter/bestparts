@@ -42,6 +42,15 @@ export default async function AdminUsersPage() {
           revokedAt: true,
         },
       },
+      submittedVideos: {
+        orderBy: { submittedAt: "desc" },
+        select: {
+          id: true,
+          movieTitle: true,
+          sceneTitle: true,
+          submittedAt: true,
+        },
+      },
     },
   });
 
@@ -53,6 +62,7 @@ export default async function AdminUsersPage() {
     createdAt: user.createdAt,
     passkeyCount: user._count.passkeys,
     latestSetupToken: user.setupTokens[0] ?? null,
+    submissions: user.submittedVideos,
   }));
 
   return (
