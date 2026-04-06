@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCeremonyCookie,
   buildExpiredCeremonyCookie,
@@ -12,17 +12,13 @@ import {
 } from "@/lib/auth/cookies";
 
 describe("auth cookies", () => {
-  const originalNodeEnv = process.env.NODE_ENV;
-  const originalSessionSecret = process.env.SESSION_SECRET;
-
   beforeEach(() => {
-    process.env.NODE_ENV = "test";
-    process.env.SESSION_SECRET = "test-session-secret";
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("SESSION_SECRET", "test-session-secret");
   });
 
   afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-    process.env.SESSION_SECRET = originalSessionSecret;
+    vi.unstubAllEnvs();
   });
 
   it("uses hardened default cookie options outside production", () => {
@@ -35,7 +31,7 @@ describe("auth cookies", () => {
   });
 
   it("uses secure default cookie options in production", () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
 
     expect(getDefaultCookieOptions()).toEqual({
       httpOnly: true,
