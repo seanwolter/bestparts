@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildAnonymousVoterCookie,
   hashAnonymousVoterId,
@@ -64,9 +64,15 @@ import Home from "@/app/page";
 describe("Home page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-05T21:00:00.000Z"));
     mocks.getCurrentUser.mockResolvedValue(null);
     mocks.cookies.mockResolvedValue(createCookieStore());
     mocks.findVideoUpvotes.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("defaults to newest ordering with deterministic tie-breakers", async () => {
@@ -145,7 +151,7 @@ describe("Home page", () => {
       version: 1,
       voterId,
     });
-    const latestVoteAt = new Date("2026-04-05T20:00:00.000Z");
+    const latestVoteAt = new Date(Date.now() - 60_000);
     const expiredVoteAt = new Date(Date.now() - (UPVOTE_COOLDOWN_MS + 60_000));
 
     mocks.cookies.mockResolvedValue(
