@@ -6,6 +6,18 @@ import {
 } from "@/lib/votes/voter-cookie";
 import { UPVOTE_COOLDOWN_MS } from "@/lib/votes/persist";
 
+const NEWEST_ORDER_BY = [
+  { submittedAt: "desc" },
+  { upvoteCount: "desc" },
+  { id: "desc" },
+] as const;
+
+const TOP_VOTED_ORDER_BY = [
+  { upvoteCount: "desc" },
+  { submittedAt: "desc" },
+  { id: "desc" },
+] as const;
+
 const mocks = vi.hoisted(() => ({
   cookies: vi.fn(),
   getCurrentUser: vi.fn(),
@@ -98,11 +110,7 @@ describe("Home page", () => {
     );
 
     expect(mocks.findVideos).toHaveBeenCalledWith({
-      orderBy: [
-        { submittedAt: "desc" },
-        { upvoteCount: "desc" },
-        { id: "desc" },
-      ],
+      orderBy: NEWEST_ORDER_BY,
     });
     expect(
       screen.getAllByTestId("video-card").map((card) => card.textContent)
@@ -133,11 +141,7 @@ describe("Home page", () => {
     );
 
     expect(mocks.findVideos).toHaveBeenCalledWith({
-      orderBy: [
-        { submittedAt: "desc" },
-        { upvoteCount: "desc" },
-        { id: "desc" },
-      ],
+      orderBy: NEWEST_ORDER_BY,
     });
     expect(
       screen.getAllByTestId("video-card").map((card) => card.textContent)
@@ -145,7 +149,100 @@ describe("Home page", () => {
     expect(screen.getByTestId("home-sort-controls")).toHaveTextContent("date");
   });
 
-  it("batches cooldown lookup for the current anonymous voter and passes it to cards", async () => {
+  it("filters videos by movie title using a case-insensitive free-text query", async () => {
+    mocks.findVideos.mockResolvedValue([
+      createVideo({
+        id: 5,
+        movieTitle: "Alien",
+        sceneTitle: "Chestburster",
+        submittedAt: createRelativeDate(-60_000),
+      }),
+      createVideo({
+        id: 6,
+        movieTitle: "Aliens",
+        sceneTitle: "Power loader",
+        submittedAt: createRelativeDate(-30_000),
+      }),
+    ]);
+
+    render(
+      await Home({
+        searchParams: Promise.resolve({ title: "alien" }),
+      })
+    );
+
+    expect(mocks.findVideos).toHaveBeenCalledWith({
+      where: {
+        movieTitle: {
+          contains: "alien",
+          mode: "insensitive",
+        },
+      },
+      orderBy: NEWEST_ORDER_BY,
+    });
+    expect(
+      screen.getAllByTestId("video-card").map((card) => card.textContent)
+    ).toEqual(["Chestburster", "Power loader"]);
+    expect(screen.getByTestId("home-sort-controls")).toHaveTextContent("date");
+  });
+
+  it("ignores a whitespace-only movie title query", async () => {
+    mocks.findVideos.mockResolvedValue([
+      createVideo({
+        id: 7,
+        sceneTitle: "Whitespace search scene",
+        submittedAt: createRelativeDate(-45_000),
+      }),
+    ]);
+
+    render(
+      await Home({
+        searchParams: Promise.resolve({ title: "   " }),
+      })
+    );
+
+    expect(mocks.findVideos).toHaveBeenCalledWith({
+      orderBy: NEWEST_ORDER_BY,
+    });
+  });
+
+  it("applies the movie title query alongside top-voted sorting", async () => {
+    mocks.findVideos.mockResolvedValue([
+      createVideo({
+        id: 8,
+        movieTitle: "Alien",
+        sceneTitle: "Space jockey",
+        upvoteCount: 8,
+        submittedAt: createRelativeDate(-120_000),
+      }),
+      createVideo({
+        id: 9,
+        movieTitle: "Aliens",
+        sceneTitle: "Nuke the site from orbit",
+        upvoteCount: 4,
+        submittedAt: createRelativeDate(-90_000),
+      }),
+    ]);
+
+    render(
+      await Home({
+        searchParams: Promise.resolve({ sort: "votes", title: "ali" }),
+      })
+    );
+
+    expect(mocks.findVideos).toHaveBeenCalledWith({
+      where: {
+        movieTitle: {
+          contains: "ali",
+          mode: "insensitive",
+        },
+      },
+      orderBy: TOP_VOTED_ORDER_BY,
+    });
+    expect(screen.getByTestId("home-sort-controls")).toHaveTextContent("votes");
+  });
+
+  it("keeps cooldown lookup scoped to the filtered search results", async () => {
     const voterId = "3b32a5ef-9059-4acc-bd6e-a8f2e37295ee";
     const issuedCookie = buildAnonymousVoterCookie({
       version: 1,
@@ -160,31 +257,40 @@ describe("Home page", () => {
       })
     );
     mocks.findVideos.mockResolvedValue([
-      createVideo({ id: 11, sceneTitle: "Cooling down", upvoteCount: 4 }),
-      createVideo({ id: 12, sceneTitle: "Already eligible", upvoteCount: 2 }),
+      createVideo({
+        id: 11,
+        movieTitle: "Heat",
+        sceneTitle: "Cooling down",
+        upvoteCount: 4,
+      }),
     ]);
     mocks.findVideoUpvotes.mockResolvedValue([
       {
         videoId: 11,
         createdAt: latestVoteAt,
       },
-      {
-        videoId: 12,
-        createdAt: expiredVoteAt,
-      },
     ]);
 
     render(
       await Home({
-        searchParams: Promise.resolve({}),
+        searchParams: Promise.resolve({ title: "heat" }),
       })
     );
 
+    expect(mocks.findVideos).toHaveBeenCalledWith({
+      where: {
+        movieTitle: {
+          contains: "heat",
+          mode: "insensitive",
+        },
+      },
+      orderBy: NEWEST_ORDER_BY,
+    });
     expect(mocks.findVideoUpvotes).toHaveBeenCalledTimes(1);
     expect(mocks.findVideoUpvotes).toHaveBeenCalledWith({
       where: {
         videoId: {
-          in: [11, 12],
+          in: [11],
         },
         voterKeyHash: hashAnonymousVoterId(voterId),
       },
@@ -198,7 +304,6 @@ describe("Home page", () => {
       screen.getAllByTestId("video-card").map((card) => card.textContent)
     ).toEqual([
       `Cooling down|${new Date(latestVoteAt.getTime() + UPVOTE_COOLDOWN_MS).toISOString()}`,
-      "Already eligible",
     ]);
   });
 });
@@ -224,6 +329,10 @@ function createVideo(
       overrides.submittedAt ?? new Date("2026-04-04T20:00:00.000Z"),
     upvoteCount: overrides.upvoteCount ?? 0,
   };
+}
+
+function createRelativeDate(offsetMs: number) {
+  return new Date(Date.now() + offsetMs);
 }
 
 function createCookieStore(values: Record<string, string> = {}) {

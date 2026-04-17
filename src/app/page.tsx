@@ -1,11 +1,11 @@
-import type { Prisma } from "@prisma/client";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import HomeEmptyState from "@/components/HomeEmptyState";
-import HomeSortControls, { type HomeSort } from "@/components/HomeSortControls";
+import HomeSortControls from "@/components/HomeSortControls";
 import VideoCard from "@/components/VideoCard";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { UPVOTE_COOLDOWN_MS } from "@/lib/votes/persist";
+import { listHomeVideos, normalizeHomeSort } from "@/lib/videos/list-home-videos";
 import {
   ANONYMOUS_VOTER_COOKIE_NAME,
   hashAnonymousVoterId,
@@ -14,35 +14,18 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function normalizeHomeSort(sort: string | undefined): HomeSort {
-  return sort === "votes" ? "votes" : "date";
-}
-
-function getHomePageOrderBy(sort: HomeSort): Prisma.VideoOrderByWithRelationInput[] {
-  return sort === "date"
-    ? [
-        { submittedAt: "desc" },
-        { upvoteCount: "desc" },
-        { id: "desc" },
-      ]
-    : [
-        { upvoteCount: "desc" },
-        { submittedAt: "desc" },
-        { id: "desc" },
-      ];
-}
-
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; title?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
   const sort = normalizeHomeSort(resolvedSearchParams.sort);
   const cookieStore = await cookies();
   const currentUser = await getCurrentUser();
-  const videos = await db.video.findMany({
-    orderBy: getHomePageOrderBy(sort),
+  const videos = await listHomeVideos(db, {
+    sort,
+    titleQuery: resolvedSearchParams.title,
   });
   const nextEligibleUpvoteAtByVideoId = await getNextEligibleUpvoteAtByVideoId(
     cookieStore,

@@ -1,6 +1,5 @@
 import Link from "next/link";
-
-export type HomeSort = "votes" | "date";
+import type { HomeSort } from "@/lib/videos/list-home-videos";
 
 export default function HomeSortControls({ sort }: { sort: HomeSort }) {
   return (
