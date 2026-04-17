@@ -47,9 +47,9 @@ export default async function Home({
         </h1>
       </div>
       <HomeMovieTitleSearch
+        key={`${sort}:${titleQuery ?? ""}`}
         sort={sort}
         titleQuery={titleQuery}
-        showClearLink={Boolean(titleQuery) && videos.length > 0}
       />
       <HomeSortControls sort={sort} titleQuery={titleQuery} />
 

@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef } from "react";
-import Link from "next/link";
+import { startTransition, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { HomeSort } from "@/lib/videos/list-home-videos";
+
+const LIVE_SEARCH_DEBOUNCE_MS = 150;
 
 export default function HomeMovieTitleSearch({
   sort,
@@ -11,51 +13,73 @@ export default function HomeMovieTitleSearch({
   sort: HomeSort;
   titleQuery?: string;
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
-  const clearSearchHref = buildClearSearchHref(sort);
+  const router = useRouter();
+  const searchTimeoutIdRef = useRef<number | null>(null);
+  const [value, setValue] = useState(titleQuery ?? "");
 
-  function handleInput(event: React.FormEvent<HTMLInputElement>) {
-    if (titleQuery && event.currentTarget.value === "") {
-      formRef.current?.requestSubmit();
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutIdRef.current !== null) {
+        window.clearTimeout(searchTimeoutIdRef.current);
+      }
+    };
+  }, []);
+
+  function handleChange(nextValue: string) {
+    setValue(nextValue);
+
+    if (searchTimeoutIdRef.current !== null) {
+      window.clearTimeout(searchTimeoutIdRef.current);
     }
+
+    const normalizedValue = nextValue.trim();
+
+    if (normalizedValue === (titleQuery ?? "")) {
+      return;
+    }
+
+    searchTimeoutIdRef.current = window.setTimeout(() => {
+      startTransition(() => {
+        router.replace(buildSearchHref(sort, normalizedValue), {
+          scroll: false,
+        });
+      });
+      searchTimeoutIdRef.current = null;
+    }, LIVE_SEARCH_DEBOUNCE_MS);
   }
 
   return (
-    <div className="mb-6 flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-      <form
-        ref={formRef}
-        action="/"
-        method="get"
-        className="flex w-full max-w-lg items-stretch gap-3"
-      >
-        {sort === "votes" ? (
-          <input type="hidden" name="sort" value="votes" />
-        ) : null}
-        <div className="flex-1">
-          <label htmlFor="movie-title-search" className="sr-only">
-            Search movie titles
-          </label>
-          <input
-            id="movie-title-search"
-            name="title"
-            type="search"
-            defaultValue={titleQuery ?? ""}
-            placeholder="Search Movies"
-            onInput={handleInput}
-            className="h-11 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 pt-2 pb-3 text-white placeholder-neutral-500 focus:border-yellow-400 focus:outline-none transition-colors"
-          />
-        </div>
-        <button
-          type="submit"
-          className="h-11 shrink-0 rounded-lg bg-yellow-400 px-5 pt-2 pb-3 font-semibold text-neutral-950 transition-colors hover:bg-yellow-300"
-        >
-          Search
-        </button>
-      </form>
+    <div className="mb-6 pt-1">
+      <div className="w-full max-w-lg">
+        <label htmlFor="movie-title-search" className="sr-only">
+          Search movie titles
+        </label>
+        <input
+          id="movie-title-search"
+          name="title"
+          type="search"
+          value={value}
+          placeholder="Movie title"
+          onChange={(event) => handleChange(event.currentTarget.value)}
+          className="h-11 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 pt-2 pb-3 text-white placeholder-neutral-500 focus:border-yellow-400 focus:outline-none transition-colors"
+        />
+      </div>
     </div>
   );
 }
 
-function buildClearSearchHref(sort: HomeSort): string {
-  return sort === "votes" ? "/?sort=votes" : "/";
+function buildSearchHref(sort: HomeSort, titleQuery: string): string {
+  const params = new URLSearchParams();
+
+  if (titleQuery) {
+    params.set("title", titleQuery);
+  }
+
+  if (sort === "votes") {
+    params.set("sort", "votes");
+  }
+
+  const query = params.toString();
+
+  return query ? `/?${query}` : "/";
 }

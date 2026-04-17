@@ -136,7 +136,6 @@ test.describe("browser auth and admin flows", () => {
     await page.goto("/");
 
     await page.getByRole("searchbox", { name: "Search movie titles" }).fill("ali");
-    await page.getByRole("button", { name: "Search" }).click();
 
     await expect(page).toHaveURL(/\/\?title=ali$/);
     await expect.poll(() => getSceneTitleOrder(page)).toEqual([
@@ -154,7 +153,7 @@ test.describe("browser auth and admin flows", () => {
 
     await page.getByRole('searchbox', { name: 'Search movie titles' }).clear();
 
-    await expect(page).toHaveURL(/\/\?sort=votes&title=$/);
+    await expect(page).toHaveURL(/\/\?sort=votes$/);
     await expect.poll(() => getSceneTitleOrder(page)).toEqual([
       "Power loader showdown",
       "Coffee shop faceoff",
@@ -162,9 +161,8 @@ test.describe("browser auth and admin flows", () => {
     ]);
 
     await page.getByRole("searchbox", { name: "Search movie titles" }).fill("NOPE");
-    await page.getByRole("button", { name: "Search" }).click();
 
-    await expect(page).toHaveURL(/\/\?sort=votes&title=NOPE$/);
+    await expect(page).toHaveURL(/\/\?title=NOPE&sort=votes$/);
     await expect(page.getByText('No movie titles match "NOPE"')).toBeVisible();
     await expect(page.getByRole("link", { name: "Clear search" })).toHaveAttribute(
       "href",

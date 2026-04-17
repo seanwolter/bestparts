@@ -70,6 +70,10 @@ vi.mock("@/components/HomeSortControls", () => ({
   ),
 }));
 
+vi.mock("@/components/HomeMovieTitleSearch", () => ({
+  default: () => <div data-testid="home-movie-title-search" />,
+}));
+
 vi.mock("@/components/VideoCard", () => ({
   default: ({
     sceneTitle,
