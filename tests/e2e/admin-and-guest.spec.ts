@@ -152,9 +152,9 @@ test.describe("browser auth and admin flows", () => {
       "Air shaft hunt",
     ]);
 
-    await page.getByRole("link", { name: "Clear search" }).click();
+    await page.getByRole('searchbox', { name: 'Search movie titles' }).clear();
 
-    await expect(page).toHaveURL(/\/\?sort=votes$/);
+    await expect(page).toHaveURL(/\/\?sort=votes&title=$/);
     await expect.poll(() => getSceneTitleOrder(page)).toEqual([
       "Power loader showdown",
       "Coffee shop faceoff",

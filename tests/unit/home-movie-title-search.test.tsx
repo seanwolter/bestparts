@@ -34,15 +34,6 @@ describe("HomeMovieTitleSearch", () => {
     ).toBeNull();
   });
 
-  it("clears only the title filter while preserving the active sort", () => {
-    render(<HomeMovieTitleSearch sort="votes" titleQuery="alien" />);
-
-    expect(screen.getByRole("link", { name: "Clear search" })).toHaveAttribute(
-      "href",
-      "/?sort=votes"
-    );
-  });
-
   it("auto-submits when an active search is cleared from the input", () => {
     render(<HomeMovieTitleSearch sort="votes" titleQuery="alien" />);
 
