@@ -135,9 +135,12 @@ test.describe("browser auth and admin flows", () => {
 
     await page.goto("/");
 
-    await page.getByRole("searchbox", { name: "Search movie titles" }).fill("ali");
+    const searchBox = page.getByRole("searchbox", { name: "Search movie titles" });
+
+    await searchBox.fill("ali");
 
     await expect(page).toHaveURL(/\/\?title=ali$/);
+    await expect(searchBox).toBeFocused();
     await expect.poll(() => getSceneTitleOrder(page)).toEqual([
       "Power loader showdown",
       "Air shaft hunt",
@@ -151,18 +154,20 @@ test.describe("browser auth and admin flows", () => {
       "Air shaft hunt",
     ]);
 
-    await page.getByRole('searchbox', { name: 'Search movie titles' }).clear();
+    await searchBox.clear();
 
     await expect(page).toHaveURL(/\/\?sort=votes$/);
+    await expect(searchBox).toBeFocused();
     await expect.poll(() => getSceneTitleOrder(page)).toEqual([
       "Power loader showdown",
       "Coffee shop faceoff",
       "Air shaft hunt",
     ]);
 
-    await page.getByRole("searchbox", { name: "Search movie titles" }).fill("NOPE");
+    await searchBox.fill("NOPE");
 
     await expect(page).toHaveURL(/\/\?title=NOPE&sort=votes$/);
+    await expect(searchBox).toBeFocused();
     await expect(page.getByText('No movie titles match "NOPE"')).toBeVisible();
     await expect(page.getByRole("link", { name: "Clear search" })).toHaveAttribute(
       "href",

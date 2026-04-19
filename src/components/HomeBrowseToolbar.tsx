@@ -26,7 +26,6 @@ export default function HomeBrowseToolbar({
           className="min-w-0 w-full max-w-lg sm:ml-auto"
         >
           <HomeMovieTitleSearch
-            key={`${sort}:${titleQuery ?? ""}`}
             sort={sort}
             titleQuery={titleQuery}
           />

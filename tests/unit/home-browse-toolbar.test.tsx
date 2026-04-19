@@ -5,8 +5,10 @@ vi.mock("@/components/HomeSortControls", () => ({
   default: () => <div data-testid="toolbar-sort-controls">sort</div>,
 }));
 
-vi.mock("@/components/HomeMovieTitleSearch", () => ({
-  default: () => <div data-testid="toolbar-search">search</div>,
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: vi.fn(),
+  }),
 }));
 
 import HomeBrowseToolbar from "@/components/HomeBrowseToolbar";
@@ -22,7 +24,7 @@ describe("HomeBrowseToolbar", () => {
       screen.getByTestId("toolbar-sort-controls")
     );
     expect(screen.getByTestId("home-browse-search-slot")).toContainElement(
-      screen.getByTestId("toolbar-search")
+      screen.getByRole("searchbox", { name: "Search movie titles" })
     );
   });
 
@@ -44,5 +46,28 @@ describe("HomeBrowseToolbar", () => {
       "max-w-lg",
       "sm:ml-auto"
     );
+  });
+
+  it("preserves the same focused search input when the title query prop changes", () => {
+    const { rerender } = render(
+      <HomeBrowseToolbar sort="date" titleQuery="ali" />
+    );
+
+    const searchbox = screen.getByRole("searchbox", {
+      name: "Search movie titles",
+    });
+
+    searchbox.focus();
+    expect(searchbox).toHaveFocus();
+
+    rerender(<HomeBrowseToolbar sort="date" titleQuery="alien" />);
+
+    const updatedSearchbox = screen.getByRole("searchbox", {
+      name: "Search movie titles",
+    });
+
+    expect(updatedSearchbox).toBe(searchbox);
+    expect(updatedSearchbox).toHaveFocus();
+    expect(updatedSearchbox).toHaveValue("alien");
   });
 });

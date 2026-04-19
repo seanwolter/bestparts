@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { HomeSort } from "@/lib/videos/list-home-videos";
 
@@ -14,8 +14,20 @@ export default function HomeMovieTitleSearch({
   titleQuery?: string;
 }) {
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutIdRef = useRef<number | null>(null);
-  const [value, setValue] = useState(titleQuery ?? "");
+  const normalizedTitleQuery = titleQuery ?? "";
+
+  useEffect(() => {
+    if (searchTimeoutIdRef.current !== null) {
+      window.clearTimeout(searchTimeoutIdRef.current);
+      searchTimeoutIdRef.current = null;
+    }
+
+    if (inputRef.current && inputRef.current.value !== normalizedTitleQuery) {
+      inputRef.current.value = normalizedTitleQuery;
+    }
+  }, [normalizedTitleQuery]);
 
   useEffect(() => {
     return () => {
@@ -26,15 +38,13 @@ export default function HomeMovieTitleSearch({
   }, []);
 
   function handleChange(nextValue: string) {
-    setValue(nextValue);
-
     if (searchTimeoutIdRef.current !== null) {
       window.clearTimeout(searchTimeoutIdRef.current);
     }
 
     const normalizedValue = nextValue.trim();
 
-    if (normalizedValue === (titleQuery ?? "")) {
+    if (normalizedValue === normalizedTitleQuery) {
       return;
     }
 
@@ -54,10 +64,11 @@ export default function HomeMovieTitleSearch({
         Search movie titles
       </label>
       <input
+        ref={inputRef}
         id="movie-title-search"
         name="title"
         type="search"
-        value={value}
+        defaultValue={normalizedTitleQuery}
         placeholder="Search Movies"
         onChange={(event) => handleChange(event.currentTarget.value)}
         className="h-11 min-w-0 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 pt-2 pb-3 text-white placeholder-neutral-500 transition-colors focus:border-yellow-400 focus:outline-none"
